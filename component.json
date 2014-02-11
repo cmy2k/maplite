@@ -1,9 +1,0 @@
-{
-	"name": "maplite",
-	"version": "1.0.0",
-	"dependencies": {
-		"jquery": "latest",
-		"jquery-ui": "latest",
-		"openlayers": "latest"
-	}
-}
