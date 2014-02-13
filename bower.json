@@ -13,7 +13,7 @@
   "dependencies": {
     "jquery": "~2.1.0",
     "jquery-ui": "~1.10.3",
-    "openlayers": "./lib/OpenLayers212"
+    "openlayers": "./lib/openlayers"
   },
   "overrides": {
       "openlayers": {
