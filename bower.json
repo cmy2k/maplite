@@ -1,6 +1,6 @@
 {
   "name": "maplite",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "homepage": "https://github.com/cmy2k/maplite",
   "main": "jquery.maplite.js",
   "ignore": [
@@ -12,6 +12,12 @@
   ],
   "dependencies": {
     "jquery": "~2.1.0",
-    "jquery-ui": "~1.10.3"
+    "jquery-ui": "~1.10.3",
+    "openlayers": "./lib/OpenLayers212"
+  },
+  "overrides": {
+      "openlayers": {
+          "main": "OpenLayers.js"
+      }
   }
 }
