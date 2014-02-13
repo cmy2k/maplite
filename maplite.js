@@ -91,7 +91,8 @@ function MapliteDataSource( url, name, color, projection, callback ) {
             layers: [],
             extent: new OpenLayers.Bounds(
                 -15000000, 2000000, -6000000, 7000000
-            )
+            ),
+            iconPath: ICON_PATH
         },
         
         //
