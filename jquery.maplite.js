@@ -30,8 +30,6 @@
  * 
  */
 
-var OpenLayers = require( './lib/openlayers/OpenLayers' );
-
 $.nemac.MARKER_COLORS = {
     RED: {hex: '#fb6254'},
     GREEN: {hex: '#00e03c'},
