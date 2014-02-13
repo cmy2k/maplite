@@ -30,7 +30,7 @@
  * 
  */
 
-$.nemac.MARKER_COLORS = {
+var MARKER_COLORS = {
     RED: {hex: '#fb6254'},
     GREEN: {hex: '#00e03c'},
     BLUE: {hex: '#4462c8'},
@@ -60,13 +60,13 @@ function MapliteDataSource( url, name, color, projection, callback ) {
         // translate to object, if string
         if ( typeof marker === 'string' ) {
             marker = marker.toUpperCase();
-            marker = $.nemac.MARKER_COLORS[marker];
+            marker = MARKER_COLORS[marker];
         }
         
         // provide default if marker isn't valid
         if ( typeof marker === 'undefined' 
                 || typeof marker.hex === 'undefined' || marker.hex === null) {
-            marker = $.nemac.MARKER_COLORS.RED;
+            marker = MARKER_COLORS.RED;
         }
         
         return ICON_PATH + marker.hex.substring(1) + ICON_EXTENSION;
