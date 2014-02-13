@@ -51,26 +51,10 @@ function MapliteDataSource( url, name, color, projection, callback ) {
     // private constants
     var SIZE = new OpenLayers.Size(14,24);
     var OFFSET = new OpenLayers.Pixel(-(SIZE.w)/2, -SIZE.h);
-    var ICON_PATH = 'map/markers/24/';
+    var ICON_PATH = 'markers/24/';
     var ICON_EXTENSION = '.png';
     var UNITS = 'm';
     var PROJECTION = 'EPSG:900913';
-    
-    function findIconPath( marker ) {
-        // translate to object, if string
-        if ( typeof marker === 'string' ) {
-            marker = marker.toUpperCase();
-            marker = MARKER_COLORS[marker];
-        }
-        
-        // provide default if marker isn't valid
-        if ( typeof marker === 'undefined' 
-                || typeof marker.hex === 'undefined' || marker.hex === null) {
-            marker = MARKER_COLORS.RED;
-        }
-        
-        return ICON_PATH + marker.hex.substring(1) + ICON_EXTENSION;
-    }
 
     $.widget( 'nemac.mapLite', {
         //
@@ -220,6 +204,22 @@ function MapliteDataSource( url, name, color, projection, callback ) {
             });
 
             return pointsLayer;
+        },
+        
+        _findIconPath: function( marker ) {
+                // translate to object, if string
+            if ( typeof marker === 'string' ) {
+                marker = marker.toUpperCase();
+                marker = MARKER_COLORS[marker];
+            }
+            
+            // provide default if marker isn't valid
+            if ( typeof marker === 'undefined' 
+                    || typeof marker.hex === 'undefined' || marker.hex === null) {
+                marker = MARKER_COLORS.RED;
+            }
+            
+            return this.options.iconPath + marker.hex.substring(1) + ICON_EXTENSION;
         },
         
         //
