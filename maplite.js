@@ -163,7 +163,7 @@ function MapliteDataSource( url, name, color, projection, callback ) {
         
         _translateJSON: function( mapliteLayer, points, mapProjection ) {
             var markerIcon = new OpenLayers.Icon(
-                    findIconPath(mapliteLayer.color),
+                    this._findIconPath(mapliteLayer.color),
                     SIZE,
                     OFFSET
             );
