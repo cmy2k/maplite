@@ -39,12 +39,12 @@ var MARKER_COLORS = {
     YELLOW: {hex: '#fcf357'}
 };
 
-function MapliteDataSource( url, name, color, projection, callback ) {
+function MapliteDataSource( url, name, color, projection, styleMap ) {
     this.url = url;
     this.name = name;
     this.color = color;
     this.projection = projection;
-    this.callback = callback;
+    this.styleMap = styleMap;
 }
 
 (function($){
@@ -76,7 +76,9 @@ function MapliteDataSource( url, name, color, projection, callback ) {
             extent: new OpenLayers.Bounds(
                 -15000000, 2000000, -6000000, 7000000
             ),
-            iconPath: ICON_PATH
+            iconPath: ICON_PATH,
+            zoomCallback: null,
+            selectCallback: null
         },
         
         //
@@ -98,10 +100,32 @@ function MapliteDataSource( url, name, color, projection, callback ) {
             this.map.zoomToExtent( this.options.extent, true );
 
             // add deferred layers
+            var deferredLayers = [];
             var instance = this;
+
             $.each( mapLayers.deferred, function( i, value ) {
-                instance._addMapliteData( value, instance.map );
+                var test = instance._getMapliteData( value );
+                deferredLayers.push( test );
             });
+            
+            this.map.addLayers( deferredLayers );
+            
+            var selectControl = new OpenLayers.Control.SelectFeature( 
+                    deferredLayers,
+                    {
+                        clickout: false,
+                        toggle: false,
+                        multiple: false,
+                        onSelect: function( event ) {
+                            if ( instance.options.selectCallback !== null && typeof instance.options.selectCallback === 'function' ) {
+                                instance.options.selectCallback( event );                            
+                                event.layer.redraw();                                
+                            }
+                        }
+                    }
+            );
+            this.map.addControl( selectControl );
+            selectControl.activate();
         },
         
         _mergeBaseLayerWithLayers: function( base, layers ) {
@@ -135,7 +159,7 @@ function MapliteDataSource( url, name, color, projection, callback ) {
         },
         
         _initMap: function( initialLayers ) {
-            return new OpenLayers.Map({
+            var olMap = new OpenLayers.Map({
                 div: this.element[0],
                 extent: this.options.extent,
                 units: UNITS,
@@ -145,39 +169,57 @@ function MapliteDataSource( url, name, color, projection, callback ) {
                         dragPanOptions: {
                             enableKinetic: true
                         }
-                    })
+                    }),
+                    new OpenLayers.Control.Zoom()
                 ],
                 zoom: 4,
                 projection: new OpenLayers.Projection( PROJECTION )
             });
-        },
-        
-        _addMapliteData: function( mapliteLayer, map ) {
+
             var instance = this;
             
-            $.getJSON( mapliteLayer.url, function( points ) {
-                var pointsLayer = instance._translateJSON( mapliteLayer, points, instance.map.getProjectionObject() );
-                map.addLayer( pointsLayer );
+            olMap.zoomToProxy = olMap.zoomTo;
+            olMap.zoomTo = function() {
+                olMap.zoomToProxy.apply( this, arguments );
+                var callback = instance.options.zoomCallback;
+                if ( typeof callback === 'function' ) {
+                    callback.call();
+                }
+            };
+            
+            return olMap;
+        },
+        
+        _getMapliteData: function( mapliteLayer ) {
+            var instance = this;
+            
+            // TODO: make async
+            var pointsLayer;
+            $.ajax({
+                async: false,
+                url: mapliteLayer.url,
+                success: function( points ) {
+                    pointsLayer = instance._translateJSON( mapliteLayer, points, instance.map.getProjectionObject() );
+                }
             });
+            
+            return pointsLayer;
         },
         
         _translateJSON: function( mapliteLayer, points, mapProjection ) {
-            var markerIcon = new OpenLayers.Icon(
-                    this._findIconPath(mapliteLayer.color),
-                    SIZE,
-                    OFFSET
-            );
-            
-            var pointsLayer = new OpenLayers.Layer.Markers(
+            var pointsLayer = new OpenLayers.Layer.Vector(
                     mapliteLayer.name,
                     {
-                        projection  : mapProjection, 
-                        units       : UNITS
+                        projection: mapProjection, 
+                        units: UNITS,
+                        styleMap: this._setDefaultStyleMap( mapliteLayer )
                     }
             );
+    
+            var features = [];
 
-            $.each( points, function( i, point ) {
-                var coordinates = new OpenLayers.LonLat( point.lon, point.lat );
+            $.each( points, function( i, obj ) {
+                var coordinates = new OpenLayers.LonLat( obj.lon, obj.lat );
 
                 if ( mapliteLayer.projection !== mapProjection ) {
                     coordinates = coordinates.transform(
@@ -186,28 +228,59 @@ function MapliteDataSource( url, name, color, projection, callback ) {
                     );
                 }
 
-                var marker = new OpenLayers.Marker(
-                        coordinates,
-                        markerIcon.clone()
-                );
-        
-                if ( mapliteLayer.callback !== null && typeof mapliteLayer.callback === 'function' ) {
-                    marker.events.register( 'click', marker, function() { 
-                        mapliteLayer.callback( this, point );
-                    } );
-                    marker.events.register( 'touchstart', marker, function() { 
-                        mapliteLayer.callback( this, point );
-                    } );
+                var point = new OpenLayers.Geometry.Point( coordinates.lon, coordinates.lat );
+                var pointFeature = new OpenLayers.Feature.Vector(point);
+                
+                // store attributes for later use in calling app
+                pointFeature.attributes.label = "";
+                for (var key in obj) {
+                    pointFeature.attributes[key] = obj[key];
                 }
-
-                pointsLayer.addMarker( marker );
+                
+                features.push( pointFeature );    
             });
+
+            pointsLayer.addFeatures( features );
 
             return pointsLayer;
         },
         
+        _setDefaultStyleMap: function( mapliteLayer ) {
+            var styleMap = mapliteLayer.styleMap;
+            // provide default label style if not provided
+            if (typeof styleMap !== 'undefined' && styleMap instanceof OpenLayers.StyleMap ) {
+                return styleMap;
+            } else {
+                var cursor = '';
+                if ( this.options.selectCallback !== null && typeof this.options.selectCallback === 'function' ) {
+                    cursor = 'pointer';
+                }
+
+                return new OpenLayers.StyleMap({
+                    "default": new OpenLayers.Style(OpenLayers.Util.applyDefaults({
+                        externalGraphic: this._findIconPath( mapliteLayer.color ),
+                        fillOpacity: 1,
+                        pointRadius: 12,
+                        label: '${label}',
+                        labelXOffset: 10,
+                        labelYOffset: 16,
+                        cursor: cursor
+                    }, OpenLayers.Feature.Vector.style["default"])),
+                    "select": new OpenLayers.Style(OpenLayers.Util.applyDefaults({
+                        externalGraphic: this._findIconPath( mapliteLayer.color ),
+                        fillOpacity: 1,
+                        pointRadius: 12,
+                        label: '${label}',
+                        labelXOffset: 10,
+                        labelYOffset: 16,
+                        cursor: cursor
+                    }, OpenLayers.Feature.Vector.style["select"]))
+                });
+            }
+        },
+
         _findIconPath: function( marker ) {
-                // translate to object, if string
+            // translate to object, if string
             if ( typeof marker === 'string' ) {
                 marker = marker.toUpperCase();
                 marker = MARKER_COLORS[marker];
