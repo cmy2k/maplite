@@ -48,10 +48,8 @@ function MapliteDataSource( url, name, id, color, projection, styleMap ) {
     this.styleMap = styleMap;
 }
 
-(function($){
+(function($, document){
     // private constants
-    var SIZE = new OpenLayers.Size(14,24);
-    var OFFSET = new OpenLayers.Pixel(-(SIZE.w)/2, -SIZE.h);
     var ICON_PATH = 'markers/24/';
     var ICON_EXTENSION = '.png';
     var UNITS = 'm';
@@ -63,22 +61,26 @@ function MapliteDataSource( url, name, id, color, projection, styleMap ) {
         //
         options: {
             baseLayer: new OpenLayers.Layer.XYZ(
-                    'OSM (with buffer)',
-                    [
-                        'http://a.tile.openstreetmap.org/${z}/${x}/${y}.png',
-                        'http://b.tile.openstreetmap.org/${z}/${x}/${y}.png',
-                        'http://c.tile.openstreetmap.org/${z}/${x}/${y}.png'
-                    ], {
-                        transitionEffect: 'resize',
-                        buffer: 2,
-                        sphericalMercator: true
-                    }),
+                'OSM (with buffer)',
+                [
+                    'http://a.tile.openstreetmap.org/${z}/${x}/${y}.png',
+                    'http://b.tile.openstreetmap.org/${z}/${x}/${y}.png',
+                    'http://c.tile.openstreetmap.org/${z}/${x}/${y}.png'
+                ], {
+                    transitionEffect: 'resize',
+                    buffer: 2,
+                    sphericalMercator: true
+                }),
             layers: [],
             extent: new OpenLayers.Bounds(
                 -15000000, 2000000, -6000000, 7000000
             ),
             iconPath: ICON_PATH,
             zoomCallback: null,
+            // for a priority, a marker will be displayed for the zoom defined or higher
+            // zoomPriorities[pointPriority] = minimumZoomLevelItShouldBeDisplayedAt
+            zoomPriorities: [],
+            priorityDataKey: 'weight',
             selectCallback: null
         },
         
@@ -103,15 +105,25 @@ function MapliteDataSource( url, name, id, color, projection, styleMap ) {
             // add deferred layers
             var deferredLayers = [];
             var instance = this;
-
-            $.each( mapLayers.deferred, function( i, value ) {
-                var test = instance._getMapliteData( value );
-                deferredLayers.push( test );
+            
+            var requests = [];
+            
+            $.each( mapLayers.maplight, function( i, mapliteLayer ) {
+                requests.push(
+                    $.get( mapliteLayer.url )
+                    .success( function( points ){
+                        deferredLayers.push(
+                            instance._translateJSON( mapliteLayer, points, instance.map.getProjectionObject() ) 
+                        );
+                    })
+                );
             });
             
-            this.map.addLayers( deferredLayers );
-            
-            var selectControl = new OpenLayers.Control.SelectFeature( 
+            $.when.apply( $, requests ).done( function(){ 
+                instance.map.addLayers( deferredLayers );
+                
+                // register callbacks
+                var selectControl = new OpenLayers.Control.SelectFeature( 
                     deferredLayers,
                     {
                         clickout: true,
@@ -119,20 +131,20 @@ function MapliteDataSource( url, name, id, color, projection, styleMap ) {
                         multiple: false,
                         onSelect: function( event ) {
                             if ( instance.options.selectCallback !== null && typeof instance.options.selectCallback === 'function' ) {
-                                instance.options.selectCallback( event );                            
-                                event.layer.redraw();                                
-                            }
-                        },
-                        onUnselect: function( event ) {
-                            if ( instance.options.selectCallback !== null && typeof instance.options.selectCallback === 'function' ) {
-                                instance.options.selectCallback( event );                            
-                                event.layer.redraw();                                
+                                instance.options.selectCallback( event );
+                                event.layer.redraw();
+                                // trigger unselect immediately so that this function works more like an onClick()
+                                selectControl.unselect( event );
                             }
                         }
                     }
-            );
-            this.map.addControl( selectControl );
-            selectControl.activate();
+                );
+                instance.map.addControl( selectControl );
+                selectControl.activate();
+
+                // set initial visibility
+                instance._scaleMapliteMarkers();
+            });
         },
         
         _mergeBaseLayerWithLayers: function( base, layers ) {
@@ -148,19 +160,19 @@ function MapliteDataSource( url, name, id, color, projection, styleMap ) {
         
         _separateLayersByType: function( layers ) {
             var passthroughLayers = [];
-            var deferredLayers = [];
+            var maplightLayers = [];
 
             // separate mapLite layers from passthrough layers
             $.each( layers, function( i, value ) {
                 if ( value instanceof MapliteDataSource ) {
-                    deferredLayers.push( value );
+                    maplightLayers.push( value );
                 } else {
                     passthroughLayers.push( value );
                 }
             });
             
             return {
-                deferred: deferredLayers,
+                maplight: maplightLayers,
                 passthrough: passthroughLayers
             };
         },
@@ -187,33 +199,21 @@ function MapliteDataSource( url, name, id, color, projection, styleMap ) {
                 olMap.events.register("zoomend", olMap, this.options.zoomCallback);
             }
             
+            if ( Array.isArray( this.options.zoomPriorities ) && this.options.zoomPriorities.length > 0 ) {
+                olMap.events.register("zoomend", this, this._scaleMapliteMarkers);
+            }
+            
             return olMap;
-        },
-        
-        _getMapliteData: function( mapliteLayer ) {
-            var instance = this;
-            
-            // TODO: make async
-            var pointsLayer;
-            $.ajax({
-                async: false,
-                url: mapliteLayer.url,
-                success: function( points ) {
-                    pointsLayer = instance._translateJSON( mapliteLayer, points, instance.map.getProjectionObject() );
-                }
-            });
-            
-            return pointsLayer;
         },
         
         _translateJSON: function( mapliteLayer, points, mapProjection ) {
             var pointsLayer = new OpenLayers.Layer.Vector(
-                    mapliteLayer.name,
-                    {
-                        projection: mapProjection, 
-                        units: UNITS,
-                        styleMap: this._setDefaultStyleMap( mapliteLayer )
-                    }
+                mapliteLayer.name,
+                {
+                    projection: mapProjection, 
+                    units: UNITS,
+                    styleMap: this._setDefaultStyleMap( mapliteLayer )
+                }
             );
 
             pointsLayer.id = mapliteLayer.id;
@@ -225,8 +225,8 @@ function MapliteDataSource( url, name, id, color, projection, styleMap ) {
 
                 if ( mapliteLayer.projection !== mapProjection ) {
                     coordinates = coordinates.transform(
-                            mapliteLayer.projection,
-                            mapProjection
+                        mapliteLayer.projection,
+                        mapProjection
                     );
                 }
 
@@ -297,17 +297,45 @@ function MapliteDataSource( url, name, id, color, projection, styleMap ) {
             
             return this.options.iconPath + marker.hex.substring(1) + ICON_EXTENSION;
         },
-        
+
+        _scaleMapliteMarkers: function() {
+            var zoom = this.map.getZoom();
+            var layers = this._separateLayersByType( this.layers ).maplight;
+            
+            var instance = this;
+            var points = [];
+            $.each( layers, function( i, layer ){
+                points = points.concat( instance.map.getLayer( layer.id ).features );
+            });
+                                    
+            $.each( points, function( i, point ){
+                var pt = document.getElementById( point.geometry.id );
+                if ( pt !== null ) {
+                    var visible = instance._isVisible( point.attributes[instance.options.priorityDataKey], zoom ) || point.attributes.selected;
+                    if (visible) {
+                        pt.setAttribute( 'visibility', 'visible' );
+                    } else {
+                        pt.setAttribute( 'visibility', 'hidden' );
+                    }
+                }
+            });
+            
+        },
+
+        _isVisible: function( priority, zoom ) {
+            return this.options.zoomPriorities[priority] <= zoom;
+        },
+
         //
         // Public methods
         //
         zoomToMaxExtent: function() {
             this.map.zoomToMaxExtent();
         },
-        
+
         getMap: function() {
             return this.map;
         }
     });
 
-})(jQuery);
+})(jQuery, document);
