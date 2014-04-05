@@ -143,7 +143,10 @@ function MapliteDataSource( url, name, id, color, projection, styleMap ) {
                 selectControl.activate();
 
                 // set initial visibility
-                instance._scaleMapliteMarkers();
+                if ( Array.isArray( instance.options.zoomPriorities ) && instance.options.zoomPriorities.length > 0 ) {
+                    instance._scaleMapliteMarkers();
+                }
+
             });
         },
         
