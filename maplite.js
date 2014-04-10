@@ -75,6 +75,7 @@ function MapliteDataSource( url, name, id, color, projection, styleMap ) {
             extent: new OpenLayers.Bounds(
                 -15000000, 2000000, -6000000, 7000000
             ),
+            mapOptions: {},
             iconPath: ICON_PATH,
             zoomCallback: null,
             // for a priority, a marker will be displayed for the zoom defined or higher
@@ -181,7 +182,7 @@ function MapliteDataSource( url, name, id, color, projection, styleMap ) {
         },
         
         _initMap: function( initialLayers ) {
-            var olMap = new OpenLayers.Map({
+            var mapBaseOptions = {
                 div: this.element[0],
                 extent: this.options.extent,
                 units: UNITS,
@@ -196,7 +197,9 @@ function MapliteDataSource( url, name, id, color, projection, styleMap ) {
                 ],
                 zoom: 4,
                 projection: new OpenLayers.Projection( PROJECTION )
-            });
+            };
+            
+            var olMap = new OpenLayers.Map($.extend( {}, this.mapOptions, mapBaseOptions));
             
             if ( typeof this.options.zoomCallback === 'function' ) {
                 olMap.events.register("zoomend", olMap, this.options.zoomCallback);
