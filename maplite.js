@@ -199,7 +199,7 @@ function MapliteDataSource( url, name, id, color, projection, styleMap ) {
                 projection: new OpenLayers.Projection( PROJECTION )
             };
             
-            var olMap = new OpenLayers.Map($.extend( {}, this.mapOptions, mapBaseOptions));
+            var olMap = new OpenLayers.Map($.extend( {}, this.options.mapOptions, mapBaseOptions));
             
             if ( typeof this.options.zoomCallback === 'function' ) {
                 olMap.events.register("zoomend", olMap, this.options.zoomCallback);
