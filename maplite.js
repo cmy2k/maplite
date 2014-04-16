@@ -72,12 +72,10 @@ function MapliteDataSource( url, name, id, color, projection, styleMap ) {
                     sphericalMercator: true
                 }),
             layers: [],
-            extent: new OpenLayers.Bounds(
-                -15000000, 2000000, -6000000, 7000000
-            ),
             mapOptions: {},
             iconPath: ICON_PATH,
             zoomCallback: null,
+            moveCallback: null,
             // for a priority, a marker will be displayed for the zoom defined or higher
             // zoomPriorities[pointPriority] = minimumZoomLevelItShouldBeDisplayedAt
             zoomPriorities: [],
@@ -101,7 +99,6 @@ function MapliteDataSource( url, name, id, color, projection, styleMap ) {
 
             // init map
             this.map = this._initMap( mapLayers.passthrough );
-            this.map.zoomToExtent( this.options.extent, true );
 
             // add deferred layers
             var deferredLayers = [];
@@ -184,9 +181,11 @@ function MapliteDataSource( url, name, id, color, projection, styleMap ) {
         _initMap: function( initialLayers ) {
             var mapBaseOptions = {
                 div: this.element[0],
-                extent: this.options.extent,
+                //extent: this.options.extent,
                 units: UNITS,
                 layers: initialLayers,
+                zoom: 4,
+                center: [-10500000, 4500000],
                 controls: [
                     new OpenLayers.Control.Navigation({
                         dragPanOptions: {
@@ -195,14 +194,20 @@ function MapliteDataSource( url, name, id, color, projection, styleMap ) {
                     }),
                     new OpenLayers.Control.Zoom()
                 ],
-                zoom: 4,
                 projection: new OpenLayers.Projection( PROJECTION )
             };
-            
-            var olMap = new OpenLayers.Map($.extend( {}, this.options.mapOptions, mapBaseOptions));
+            var olMap = new OpenLayers.Map($.extend( {}, mapBaseOptions, this.options.mapOptions));
             
             if ( typeof this.options.zoomCallback === 'function' ) {
                 olMap.events.register("zoomend", olMap, this.options.zoomCallback);
+            }
+
+            if ( typeof this.options.moveCallback === 'function' ) {
+                var self = this;
+                olMap.events.register("moveend", olMap, 
+                                      function() {
+                                          self.options.moveCallback(self.getCenterAndZoom());
+                                      });
             }
             
             if ( Array.isArray( this.options.zoomPriorities ) && this.options.zoomPriorities.length > 0 ) {
@@ -339,6 +344,30 @@ function MapliteDataSource( url, name, id, color, projection, styleMap ) {
             this.map.zoomToMaxExtent();
         },
 
+        // $(...).mapLite('setCenterAndZoom', o):
+        //   o should be a JS object with two properties:
+        //      (Array) o.center = 2-element JS array of numbers: x,y coords of map center
+        //      (Number) o.zoom = map zoom level
+        setCenterAndZoom: function(o) {
+            this.map.setCenter(o.center, o.zoom);
+        },
+
+        // $(...).mapLite('getCenterAndZoom'):
+        //    returns an object of the format described above for setCenterAndZoom(), giving the map's
+        //    current center and zoom level
+        getCenterAndZoom: function() {
+            var zoom = this.map.getZoom();
+            var center = this.map.getCenter();
+            return {
+                center : [center.lon, center.lat],
+                zoom   : zoom
+            };
+        },
+
+        // $(...).mapLite('getMap'):
+        //   return the underlying OpenLayers map object
+        //   TODO: consider removing this, so clients can't program OL-specific behavior, allowing us to
+        //   change to some other underlying map API (Leaflet?) in the future???
         getMap: function() {
             return this.map;
         }
