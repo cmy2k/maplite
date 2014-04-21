@@ -129,6 +129,10 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, zoomFilt
                 if ( Array.isArray( instance.options.zoomPriorities ) && instance.options.zoomPriorities.length > 0 ) {
                     instance._scaleMapliteMarkers();
                 }
+
+                if (instance.options.onCreate !== null && typeof instance.options.onCreate === 'function' ) {
+                    instance.options.onCreate(instance);
+                }
             });
         },
         
@@ -393,7 +397,32 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, zoomFilt
         //   change to some other underlying map API (Leaflet?) in the future???
         getMap: function() {
             return this.map;
+        },
+
+        redrawLayer: function(layerId) {
+            var layer = this.map.getLayer( layerId );
+            if (!layer || layer === null) { return null; }
+            //NOTE: not sure why, but layer.refresh() doesn't seem to do the trick here
+            //layer.refresh({force:true});
+            //NOTE: layer.redraw() does, though!
+            layer.redraw();
+        },
+
+        getPoint: function(layerId, id) {
+            var layer = this.map.getLayer( layerId );
+            if (!layer || layer === null) { return null; }
+            var features = layer.features;
+            if (!features || features === null) { return null; }
+            var i;
+            for (i=0; i<features.length; ++i) {
+                if (features[i].attributes.id === id) {
+                    return features[i];
+                }
+            }
+            return null;
         }
+
+
     });
 
 })(jQuery, document);
