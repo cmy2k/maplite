@@ -39,13 +39,14 @@ var MARKER_COLORS = {
     YELLOW: {hex: '#fcf357'}
 };
 
-function MapliteDataSource( url, name, id, color, projection, styleMap ) {
+function MapliteDataSource( url, name, id, color, projection, styleMap, zoomFilter ) {
     this.url = url;
     this.name = name;
     this.id = id;
     this.color = color;
     this.projection = projection;
     this.styleMap = styleMap;
+    this.zoomFilter = zoomFilter;
 }
 
 (function($, document){
@@ -88,6 +89,8 @@ function MapliteDataSource( url, name, id, color, projection, styleMap ) {
         //
         layers: [],
         map: null,
+        selectControl: null,
+        filters: [],
         
         //
         // Private methods
@@ -117,34 +120,15 @@ function MapliteDataSource( url, name, id, color, projection, styleMap ) {
                 );
             });
             
-            $.when.apply( $, requests ).done( function(){ 
+            $.when.apply( $, requests ).done( function() {
                 instance.map.addLayers( deferredLayers );
                 
-                // register callbacks
-                var selectControl = new OpenLayers.Control.SelectFeature( 
-                    deferredLayers,
-                    {
-                        clickout: true,
-                        toggle: true,
-                        multiple: false,
-                        onSelect: function( event ) {
-                            if ( instance.options.selectCallback !== null && typeof instance.options.selectCallback === 'function' ) {
-                                instance.options.selectCallback( event );
-                                event.layer.redraw();
-                                // trigger unselect immediately so that this function works more like an onClick()
-                                selectControl.unselect( event );
-                            }
-                        }
-                    }
-                );
-                instance.map.addControl( selectControl );
-                selectControl.activate();
+                instance.selectControl = instance._deploySelectFeatureControl( deferredLayers );
 
                 // set initial visibility
                 if ( Array.isArray( instance.options.zoomPriorities ) && instance.options.zoomPriorities.length > 0 ) {
                     instance._scaleMapliteMarkers();
                 }
-
             });
         },
         
@@ -215,6 +199,33 @@ function MapliteDataSource( url, name, id, color, projection, styleMap ) {
             }
             
             return olMap;
+        },
+        
+        _deploySelectFeatureControl: function( initialLayers ) {
+            var instance = this;
+            
+            // register callbacks
+            var selectControl = new OpenLayers.Control.SelectFeature( 
+                initialLayers,
+                {
+                    clickout: true,
+                    toggle: true,
+                    multiple: false,
+                    onSelect: function( event ) {
+                        if ( instance.options.selectCallback !== null && typeof instance.options.selectCallback === 'function' ) {
+                            instance.options.selectCallback( event );
+                            event.layer.redraw();
+                            // trigger unselect immediately so that this function works more like an onClick()
+                            selectControl.unselect( event );
+                        }
+                    }
+                }
+            );
+    
+            this.map.addControl( selectControl );
+            selectControl.activate();
+            
+            return selectControl;
         },
         
         _translateJSON: function( mapliteLayer, points, mapProjection ) {
@@ -336,7 +347,19 @@ function MapliteDataSource( url, name, id, color, projection, styleMap ) {
         _isVisible: function( priority, zoom ) {
             return this.options.zoomPriorities[priority] <= zoom;
         },
-
+        
+        _memoizeLayerFilter: function( filter, layer ) {
+            var memo = {};
+            return function( zoom ) {
+                if ( memo[zoom] !== undefined ) {
+                    return memo[zoom];
+                }
+                
+                memo[zoom] = filter( zoom, layer );
+                return memo[zoom];
+            };
+        },
+        
         //
         // Public methods
         //
