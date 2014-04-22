@@ -39,14 +39,20 @@ var MARKER_COLORS = {
     YELLOW: {hex: '#fcf357'}
 };
 
-function MapliteDataSource( url, name, id, color, projection, styleMap, zoomFilter ) {
+function MapliteDataSource( url, name, id, color, projection, styleMap, filter ) {
     this.url = url;
     this.name = name;
     this.id = id;
     this.color = color;
     this.projection = projection;
     this.styleMap = styleMap;
-    this.zoomFilter = zoomFilter;
+    if ( typeof filter !== 'undefined' && filter !== null ) {
+        this.filter = filter;
+    } else {
+        this.filter = function( zoom, layer ) {
+            return layer;
+        };
+    }
 }
 
 (function($, document){
@@ -57,9 +63,9 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, zoomFilt
     var PROJECTION = 'EPSG:900913';
 
     $.widget( 'nemac.mapLite', {
-        //
+        //----------------------------------------------------------------------
         // Defaults
-        //
+        //----------------------------------------------------------------------
         options: {
             baseLayer: new OpenLayers.Layer.XYZ(
                 'OSM (with buffer)',
@@ -77,24 +83,24 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, zoomFilt
             iconPath: ICON_PATH,
             zoomCallback: null,
             moveCallback: null,
-            // for a priority, a marker will be displayed for the zoom defined or higher
-            // zoomPriorities[pointPriority] = minimumZoomLevelItShouldBeDisplayedAt
-            zoomPriorities: [],
             priorityDataKey: 'weight',
             selectCallback: null
         },
         
-        //
+        //----------------------------------------------------------------------
         // Private vars
-        //
+        //----------------------------------------------------------------------
         layers: [],
+        mapliteLayerCache: {},
+        pointHash: {},
+        selectedPoints: [],
         map: null,
         selectControl: null,
-        filters: [],
+        filters: {},
         
-        //
+        //----------------------------------------------------------------------
         // Private methods
-        //
+        //----------------------------------------------------------------------
         _create: function() {
             // prepare layers
             this.layers = this._mergeBaseLayerWithLayers( this.options.baseLayer, this.options.layers );
@@ -102,9 +108,9 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, zoomFilt
 
             // init map
             this.map = this._initMap( mapLayers.passthrough );
+            //instance.selectControl = instance._deploySelectFeatureControl();
 
-            // add deferred layers
-            var deferredLayers = [];
+            // request maplite layers
             var instance = this;
             
             var requests = [];
@@ -113,22 +119,14 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, zoomFilt
                 requests.push(
                     $.get( mapliteLayer.url )
                     .success( function( points ){
-                        deferredLayers.push(
-                            instance._translateJSON( mapliteLayer, points, instance.map.getProjectionObject() ) 
-                        );
+                        instance.filters[mapliteLayer.id] = instance._buildFilterFunctionCache( mapliteLayer.filter, points );
+                        instance.pointHash[mapliteLayer.id] = instance._hashPoints( points );
                     })
                 );
             });
             
             $.when.apply( $, requests ).done( function() {
-                instance.map.addLayers( deferredLayers );
-                
-                instance.selectControl = instance._deploySelectFeatureControl( deferredLayers );
-
-                // set initial visibility
-                if ( Array.isArray( instance.options.zoomPriorities ) && instance.options.zoomPriorities.length > 0 ) {
-                    instance._scaleMapliteMarkers();
-                }
+                instance._scaleMapliteMarkers();
 
                 if (instance.options.onCreate !== null && typeof instance.options.onCreate === 'function' ) {
                     instance.options.onCreate(instance);
@@ -136,35 +134,7 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, zoomFilt
             });
         },
         
-        _mergeBaseLayerWithLayers: function( base, layers ) {
-            // add the isBaseLayer property to the specified base layer, if not added
-            var baseLayer = $.extend( {}, base, { isBaseLayer: true });
-            
-            // push the base layer into the layers array for cleaner initialization
-            var mergedLayers = $.merge( [], layers );
-            mergedLayers.push( baseLayer );
-            
-            return mergedLayers;
-        },
-        
-        _separateLayersByType: function( layers ) {
-            var passthroughLayers = [];
-            var maplightLayers = [];
-
-            // separate mapLite layers from passthrough layers
-            $.each( layers, function( i, value ) {
-                if ( value instanceof MapliteDataSource ) {
-                    maplightLayers.push( value );
-                } else {
-                    passthroughLayers.push( value );
-                }
-            });
-            
-            return {
-                maplight: maplightLayers,
-                passthrough: passthroughLayers
-            };
-        },
+        // map creation helpers
         
         _initMap: function( initialLayers ) {
             var mapBaseOptions = {
@@ -198,19 +168,18 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, zoomFilt
                                       });
             }
             
-            if ( Array.isArray( this.options.zoomPriorities ) && this.options.zoomPriorities.length > 0 ) {
-                olMap.events.register("zoomend", this, this._scaleMapliteMarkers);
-            }
+            // when map zooms, redraw layers as needed
+            olMap.events.register("zoomend", this, this._scaleMapliteMarkers);
             
             return olMap;
         },
         
-        _deploySelectFeatureControl: function( initialLayers ) {
+        _deploySelectFeatureControl: function( layers ) {
             var instance = this;
             
-            // register callbacks
+            // register callback event, will add the layers later
             var selectControl = new OpenLayers.Control.SelectFeature( 
-                initialLayers,
+                layers,
                 {
                     clickout: true,
                     toggle: true,
@@ -230,6 +199,38 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, zoomFilt
             selectControl.activate();
             
             return selectControl;
+        },
+        
+        // data helpers
+        
+        _mergeBaseLayerWithLayers: function( base, layers ) {
+            // add the isBaseLayer property to the specified base layer, if not added
+            var baseLayer = $.extend( {}, base, { isBaseLayer: true });
+            
+            // push the base layer into the layers array for cleaner initialization
+            var mergedLayers = $.merge( [], layers );
+            mergedLayers.push( baseLayer );
+            
+            return mergedLayers;
+        },
+        
+        _separateLayersByType: function( layers ) {
+            var passthroughLayers = [];
+            var maplightLayers = [];
+
+            // separate mapLite layers from passthrough layers
+            $.each( layers, function( i, value ) {
+                if ( value instanceof MapliteDataSource ) {
+                    maplightLayers.push( value );
+                } else {
+                    passthroughLayers.push( value );
+                }
+            });
+            
+            return {
+                maplight: maplightLayers,
+                passthrough: passthroughLayers
+            };
         },
         
         _translateJSON: function( mapliteLayer, points, mapProjection ) {
@@ -273,6 +274,74 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, zoomFilt
 
             return pointsLayer;
         },
+        
+        _hashPoints: function( points ) {
+            var hash = {};
+            $.each( points, function( i, point ){
+                hash[point.id] = point;
+                hash[point.id].selected = false;
+                hash[point.id].label = "";
+            });
+            
+            return hash;
+        },
+        
+        // zoom handlers
+        
+        _scaleMapliteMarkers: function() {
+            var zoom = this.map.getZoom();
+            var layers = this._separateLayersByType( this.layers ).maplight;
+            
+            var selectFeatures = [];
+            
+            var instance = this;
+
+            $.each( layers, function( i, layer) {
+                selectFeatures.push( instance._getCacheLayer( layer, zoom ) );
+                
+                // remove corresponding layer if exists
+                var getLayer = instance.map.getLayer( layer.id );
+                if ( getLayer ) {
+                    instance.map.removeLayer( getLayer );
+                }
+            });
+            
+            this.map.addLayers( selectFeatures );
+            
+            if ( this.selectControl === null ) {
+                this.selectControl = this._deploySelectFeatureControl( selectFeatures );
+            } else {
+                this.selectControl.setLayer( selectFeatures );
+            }
+        },
+        
+        _buildFilterFunctionCache: function( filter, layer ) {
+            var cache = {};
+            return function( zoom ) {
+                if ( cache[zoom] !== undefined ) {
+                    return cache[zoom];
+                }
+                
+                cache[zoom] = filter( zoom, layer );
+                return cache[zoom];
+            };
+        },
+        
+        _getCacheLayer: function( layer, zoom ) {
+            var points = this.filters[layer.id](zoom);
+                
+            if ( typeof this.mapliteLayerCache[layer.id] === 'undefined' || this.mapliteLayerCache[layer.id] === null ) {
+                this.mapliteLayerCache[layer.id] = {};
+            }
+
+            if (typeof this.mapliteLayerCache[layer.id][zoom] === 'undefined' || this.mapliteLayerCache[layer.id][zoom] === null) {
+                this.mapliteLayerCache[layer.id][zoom] = this._translateJSON( layer, points, this.map.getProjectionObject() );
+            }
+
+            return this.mapliteLayerCache[layer.id][zoom];
+        },
+        
+        // layer generation, marker styling
         
         _setDefaultStyleMap: function( mapliteLayer ) {
             var styleMap = mapliteLayer.styleMap;
@@ -323,50 +392,10 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, zoomFilt
             
             return this.options.iconPath + marker.hex.substring(1) + ICON_EXTENSION;
         },
-
-        _scaleMapliteMarkers: function() {
-            var zoom = this.map.getZoom();
-            var layers = this._separateLayersByType( this.layers ).maplight;
-            
-            var instance = this;
-            var points = [];
-            $.each( layers, function( i, layer ){
-                points = points.concat( instance.map.getLayer( layer.id ).features );
-            });
-                                    
-            $.each( points, function( i, point ){
-                var pt = document.getElementById( point.geometry.id );
-                if ( pt !== null ) {
-                    var visible = instance._isVisible( point.attributes[instance.options.priorityDataKey], zoom ) || point.attributes.selected;
-                    if (visible) {
-                        pt.setAttribute( 'visibility', 'visible' );
-                    } else {
-                        pt.setAttribute( 'visibility', 'hidden' );
-                    }
-                }
-            });
-            
-        },
-
-        _isVisible: function( priority, zoom ) {
-            return this.options.zoomPriorities[priority] <= zoom;
-        },
         
-        _memoizeLayerFilter: function( filter, layer ) {
-            var memo = {};
-            return function( zoom ) {
-                if ( memo[zoom] !== undefined ) {
-                    return memo[zoom];
-                }
-                
-                memo[zoom] = filter( zoom, layer );
-                return memo[zoom];
-            };
-        },
-        
-        //
+        //----------------------------------------------------------------------
         // Public methods
-        //
+        //----------------------------------------------------------------------
         zoomToMaxExtent: function() {
             this.map.zoomToMaxExtent();
         },
@@ -391,14 +420,6 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, zoomFilt
             };
         },
 
-        // $(...).mapLite('getMap'):
-        //   return the underlying OpenLayers map object
-        //   TODO: consider removing this, so clients can't program OL-specific behavior, allowing us to
-        //   change to some other underlying map API (Leaflet?) in the future???
-        getMap: function() {
-            return this.map;
-        },
-
         redrawLayer: function(layerId) {
             var layer = this.map.getLayer( layerId );
             if (!layer || layer === null) { return null; }
@@ -409,6 +430,7 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, zoomFilt
         },
 
         getPoint: function(layerId, id) {
+            // TODO revise - this approach won't work if the point isn't displayed in the current layer
             var layer = this.map.getLayer( layerId );
             if (!layer || layer === null) { return null; }
             var features = layer.features;
@@ -422,7 +444,20 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, zoomFilt
             return null;
         }
 
-
     });
 
 })(jQuery, document);
+
+// test helpers
+function timeDiff() {
+    var start = new Date();
+    var tp = start.getTime();
+    
+    return function( message ) {
+        var d = new Date();
+        var tc = d.getTime();
+        var pr = tc - tp;
+        console.log( message + ' in ' + pr  + ' ms' );
+        tp = tc;
+    };
+}
