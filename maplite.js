@@ -61,6 +61,7 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
     var ICON_EXTENSION = '.png';
     var UNITS = 'm';
     var PROJECTION = 'EPSG:900913';
+    var SELECTED_LAYER_NAME = 'lyr_selected';
 
     $.widget( 'nemac.mapLite', {
         //----------------------------------------------------------------------
@@ -84,16 +85,18 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             zoomCallback: null,
             moveCallback: null,
             priorityDataKey: 'weight',
-            selectCallback: null
+            selectCallback: null,
+            selectedColor: MARKER_COLORS.YELLOW
         },
         
         //----------------------------------------------------------------------
         // Private vars
         //----------------------------------------------------------------------
         layers: [],
+        selectLayer: null,
         mapliteLayerCache: {},
         pointHash: {},
-        selectedPoints: [],
+        selectedPoints: {},
         map: null,
         selectControl: null,
         filters: {},
@@ -185,11 +188,20 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
                     toggle: true,
                     multiple: false,
                     onSelect: function( event ) {
+                        // check if point is in selected points, if so, return
+                        if ( instance.selectedPoints[event.attributes.id] ) {
+                            return;
+                        }
+                        
+                        var point = instance.pointHash[event.layer.id][event.attributes.id];
+                                                
+                        instance.selectPoint( event.layer.id, event.attributes.id);
+
+                        // trigger unselect immediately so that this function works more like an onClick()
+                        selectControl.unselect( event );
+
                         if ( instance.options.selectCallback !== null && typeof instance.options.selectCallback === 'function' ) {
-                            instance.options.selectCallback( event );
-                            event.layer.redraw();
-                            // trigger unselect immediately so that this function works more like an onClick()
-                            selectControl.unselect( event );
+                            instance.options.selectCallback( $.extend( {}, point ) );
                         }
                     }
                 }
@@ -231,6 +243,44 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
                 maplight: maplightLayers,
                 passthrough: passthroughLayers
             };
+        },
+        
+        _addSelectLayer: function( ) {
+            // remove selected layer if exists
+            var getLayer = this.map.getLayer( SELECTED_LAYER_NAME );
+            if ( getLayer ) {
+                this.map.removeLayer( getLayer );
+            }
+            
+            // TODO generalize
+            var ml = new MapliteDataSource(
+                null,
+                'Selected Stations',
+                SELECTED_LAYER_NAME,
+                this.options.selectedColor,
+                'EPSG:4326'
+            );
+    
+            var layer = this._translateJSON( ml, this.selectedPoints, this.map.getProjectionObject() );
+            this.map.addLayer( layer );
+            
+            this.selectLayer = layer;
+            
+            this.map.raiseLayer( layer, this.map.layers.length - 1 );
+            this.map.resetLayersZIndex();
+            
+            // re-register select listener
+            var layers = this._separateLayersByType( this.layers ).maplight;
+            var selectFeatures = [];
+            var instance = this;
+
+            $.each( layers, function( i, lyr) {
+                selectFeatures.push( instance._getCacheLayer( lyr, instance.map.getZoom() ) );
+            });
+            
+            selectFeatures.push(layer);
+            
+            this.selectControl.setLayer( selectFeatures );
         },
         
         _translateJSON: function( mapliteLayer, points, mapProjection ) {
@@ -308,6 +358,13 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             
             this.map.addLayers( selectFeatures );
             
+            
+            if (this.selectLayer) {
+                selectFeatures.push( this.selectLayer );
+                this.map.raiseLayer( this.selectLayer, this.map.layers.length - 1 );
+                this.map.resetLayersZIndex();
+            }
+            
             if ( this.selectControl === null ) {
                 this.selectControl = this._deploySelectFeatureControl( selectFeatures );
             } else {
@@ -353,7 +410,7 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
                 if ( this.options.selectCallback !== null && typeof this.options.selectCallback === 'function' ) {
                     cursor = 'pointer';
                 }
-
+                
                 return new OpenLayers.StyleMap({
                     "default": new OpenLayers.Style(OpenLayers.Util.applyDefaults({
                         externalGraphic: this._findIconPath( mapliteLayer.color ),
@@ -431,6 +488,7 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
 
         getPoint: function(layerId, id) {
             // TODO revise - this approach won't work if the point isn't displayed in the current layer
+            /*
             var layer = this.map.getLayer( layerId );
             if (!layer || layer === null) { return null; }
             var features = layer.features;
@@ -442,6 +500,35 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
                 }
             }
             return null;
+            */
+           
+           return $.extend( {}, this.pointHash[layerId][id] );
+        },
+        
+        selectPoint: function( layerId, id ) {
+            if ( this.selectedPoints[id] ) {
+                return;
+            }
+            
+            var point = this.pointHash[layerId][id];
+            
+            var size = 1;
+            
+            $.each(this.selectedPoints, function() {
+               size++; 
+            });
+                        
+            point.label = size;
+            
+            this.selectedPoints[id] = point;
+                        
+            this._addSelectLayer();
+            
+            return $.extend( {}, point );
+        },
+        
+        unselectPoint: function( layerId, id ) {
+            
         }
 
     });
