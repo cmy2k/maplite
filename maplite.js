@@ -527,8 +527,14 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             return $.extend( {}, point );
         },
         
-        unselectPoint: function( layerId, id ) {
-            
+        unselectPoint: function( id ) {
+            delete this.selectedPoints[id];
+            this._addSelectLayer();
+        },
+        
+        setLabel: function( id, label ) {
+            this.selectedPoints[id].label = label;
+            this._addSelectLayer();
         }
 
     });
