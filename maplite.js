@@ -510,7 +510,8 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
                 return;
             }
             
-            var point = this.pointHash[layerId][id];
+            // deep copy so that labels don't appear in the core point hash
+            var point = $.extend( {}, this.pointHash[layerId][id]);
             
             var size = 1;
             
