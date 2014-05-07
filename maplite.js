@@ -135,6 +135,10 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
                     instance.options.onCreate(instance);
                 }
             });
+            
+            // deploy selector
+            //this._deploySelector();
+            this.map.addControl(new OpenLayers.Control.LayerSwitcher());
         },
         
         // map creation helpers
@@ -289,7 +293,8 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
                 {
                     projection: mapProjection, 
                     units: UNITS,
-                    styleMap: this._setDefaultStyleMap( mapliteLayer )
+                    styleMap: this._setDefaultStyleMap( mapliteLayer ),
+                    displayInLayerSwitcher: false
                 }
             );
 
@@ -448,6 +453,18 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             }
             
             return this.options.iconPath + marker.hex.substring(1) + ICON_EXTENSION;
+        },
+        
+        // layer selector
+        
+        _deploySelector: function() {
+            var baseId = this.element[0].id;
+            
+            $('<div/>', {
+                id: baseId + '',
+                class: 'selectPane'
+            }).appendTo('#' + baseId);
+            
         },
         
         //----------------------------------------------------------------------
