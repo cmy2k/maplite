@@ -86,13 +86,13 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             moveCallback: null,
             priorityDataKey: 'weight',
             selectCallback: null,
-            selectedColor: MARKER_COLORS.YELLOW
+            selectedColor: MARKER_COLORS.BLUE
         },
         
         //----------------------------------------------------------------------
         // Private vars
         //----------------------------------------------------------------------
-        layers: [],
+        layers: { base: {}, maplight: [], overlays: [] },
         selectLayer: null,
         mapliteLayerCache: {},
         pointHash: {},
@@ -106,19 +106,24 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
         //----------------------------------------------------------------------
         _create: function() {
             // prepare layers
-            this.layers = this._mergeBaseLayerWithLayers( this.options.baseLayer, this.options.layers );
-            var mapLayers = this._separateLayersByType( this.layers );
+            this.layers.base = $.extend( {}, this.options.baseLayer, { isBaseLayer: true });
+            
+            var separatedLayers = this._separateLayersByType( this.options.layers );
+            this.layers.maplight = separatedLayers.maplight;
+            $.each( separatedLayers.overlays, function( i, layer ) {
+                $.extend( layer, {isBaseLayer: false} );
+            });
+            this.layers.overlays = $.merge( [], separatedLayers.overlays );
 
             // init map
-            this.map = this._initMap( mapLayers.passthrough );
-            //instance.selectControl = instance._deploySelectFeatureControl();
+            this.map = this._initMap( [this.layers.base] );
 
             // request maplite layers
             var instance = this;
             
             var requests = [];
             
-            $.each( mapLayers.maplight, function( i, mapliteLayer ) {
+            $.each( this.layers.maplight, function( i, mapliteLayer ) {
                 requests.push(
                     $.get( mapliteLayer.url )
                     .success( function( points ){
@@ -130,14 +135,15 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             
             $.when.apply( $, requests ).done( function() {
                 instance._scaleMapliteMarkers();
-
                 if (instance.options.onCreate !== null && typeof instance.options.onCreate === 'function' ) {
                     instance.options.onCreate(instance);
                 }
             });
             
+            // add overlays
+            this.map.addLayers( this.layers.overlays );
+            
             // deploy selector
-            //this._deploySelector();
             this.map.addControl(new OpenLayers.Control.LayerSwitcher());
         },
         
@@ -146,7 +152,6 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
         _initMap: function( initialLayers ) {
             var mapBaseOptions = {
                 div: this.element[0],
-                //extent: this.options.extent,
                 units: UNITS,
                 layers: initialLayers,
                 zoom: 4,
@@ -161,6 +166,7 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
                 ],
                 projection: new OpenLayers.Projection( PROJECTION )
             };
+
             var olMap = new OpenLayers.Map($.extend( {}, mapBaseOptions, this.options.mapOptions));
             
             if ( typeof this.options.zoomCallback === 'function' ) {
@@ -218,20 +224,9 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
         },
         
         // data helpers
-        
-        _mergeBaseLayerWithLayers: function( base, layers ) {
-            // add the isBaseLayer property to the specified base layer, if not added
-            var baseLayer = $.extend( {}, base, { isBaseLayer: true });
-            
-            // push the base layer into the layers array for cleaner initialization
-            var mergedLayers = $.merge( [], layers );
-            mergedLayers.push( baseLayer );
-            
-            return mergedLayers;
-        },
-        
+
         _separateLayersByType: function( layers ) {
-            var passthroughLayers = [];
+            var overlays = [];
             var maplightLayers = [];
 
             // separate mapLite layers from passthrough layers
@@ -239,13 +234,13 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
                 if ( value instanceof MapliteDataSource ) {
                     maplightLayers.push( value );
                 } else {
-                    passthroughLayers.push( value );
+                    overlays.push( value );
                 }
             });
             
             return {
                 maplight: maplightLayers,
-                passthrough: passthroughLayers
+                overlays: overlays
             };
         },
         
@@ -274,11 +269,10 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             this.map.resetLayersZIndex();
             
             // re-register select listener
-            var layers = this._separateLayersByType( this.layers ).maplight;
             var selectFeatures = [];
             var instance = this;
 
-            $.each( layers, function( i, lyr) {
+            $.each( this.layers.maplight, function( i, lyr) {
                 selectFeatures.push( instance._getCacheLayer( lyr, instance.map.getZoom() ) );
             });
             
@@ -345,13 +339,12 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
         
         _scaleMapliteMarkers: function() {
             var zoom = this.map.getZoom();
-            var layers = this._separateLayersByType( this.layers ).maplight;
             
             var selectFeatures = [];
             
             var instance = this;
 
-            $.each( layers, function( i, layer) {
+            $.each( this.layers.maplight, function( i, layer) {
                 selectFeatures.push( instance._getCacheLayer( layer, zoom ) );
                 
                 // remove corresponding layer if exists
@@ -464,7 +457,6 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
                 id: baseId + '',
                 class: 'selectPane'
             }).appendTo('#' + baseId);
-            
         },
         
         //----------------------------------------------------------------------
@@ -504,21 +496,6 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
         },
 
         getPoint: function(layerId, id) {
-            // TODO revise - this approach won't work if the point isn't displayed in the current layer
-            /*
-            var layer = this.map.getLayer( layerId );
-            if (!layer || layer === null) { return null; }
-            var features = layer.features;
-            if (!features || features === null) { return null; }
-            var i;
-            for (i=0; i<features.length; ++i) {
-                if (features[i].attributes.id === id) {
-                    return features[i];
-                }
-            }
-            return null;
-            */
-           
            return $.extend( {}, this.pointHash[layerId][id] );
         },
         
