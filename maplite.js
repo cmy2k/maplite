@@ -145,6 +145,12 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             
             // deploy selector
             this.map.addControl(new OpenLayers.Control.LayerSwitcher());
+            
+            // customize the layer selector
+            $( '#OpenLayers_Control_MaximizeDiv', this.element[0] ).append( '<span class="layerPickerLabel">Data</span>' );
+            
+            //$( 'OpenLayers_Control_MinimizeDiv', this.element[0] ).appendTo( $( 'OpenLayers_Control_MinimizeDiv' ).closest( 'div.layersDiv' ) ).removeAttr( 'style' );
+
         },
         
         // map creation helpers
