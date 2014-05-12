@@ -176,9 +176,9 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             if ( typeof this.options.moveCallback === 'function' ) {
                 var self = this;
                 olMap.events.register("moveend", olMap, 
-                                      function() {
-                                          self.options.moveCallback(self.getCenterAndZoom());
-                                      });
+                    function() {
+                        self.options.moveCallback(self.getCenterAndZoom());
+                    });
             }
             
             // when map zooms, redraw layers as needed
