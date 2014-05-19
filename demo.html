@@ -17,13 +17,15 @@
         <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
         <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.4/jquery-ui.min.js"></script>
         <script src="lib/openlayers/OpenLayers.js"></script>
-        <script src="maplite.js"></script>
         <script src="config.js"></script>
+        <script src="maplite.js"></script>
+
+        
         <script type="text/javascript">
             $( '#map' ).mapLite({
                 config: 'ce.json',
                 onCreate: function(){
-                    var foo = 'bar';
+                    console.log( 'map created' );
             }});
         </script>
     </body>

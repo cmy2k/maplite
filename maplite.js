@@ -63,30 +63,12 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
     var PROJECTION = 'EPSG:900913';
     var SELECTED_LAYER_NAME = 'lyr_selected';
     
-    // configuration wrapper
-    function MapConfig( configurationUri ) {
-        var deferred = $.Deferred();
-        
-        var promise = $.getJSON( configurationUri );;
-        
-        promise.done( function( config ){
-            if ( true ) {
-                deferred.resolve( config );
-            } else {
-                deferred.reject( config );
-            }
-        });
-        
-        return deferred.promise();
-    };
-    
-
     $.widget( 'nemac.mapLite', {
         //----------------------------------------------------------------------
         // Defaults
         //----------------------------------------------------------------------
         options: {
-            config: null, // if config provided, will override
+            config: null, // if config provided, will override any parameters included
             baseLayer: new OpenLayers.Layer.XYZ(
                 'OSM (with buffer)',
                 [
@@ -124,8 +106,23 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
         // Private methods
         //----------------------------------------------------------------------
         _create: function() {
-            // is external config-driven?
-            
+            // is external config file-driven?
+            if ( this.options.config !== null && typeof this.options.config === 'string' ) {
+                var instance = this;
+                MapConfig( this.options.config ).done( function( options, mapOptions ) {
+                    $.extend( instance.options, options );
+                    $.extend( instance.options.mapOptions, mapOptions );
+                                        
+                    instance._initApp();
+                }).fail( function() {
+                    $(instance.element[0]).append('<b>Error loading map configuration.</b>');
+                });
+            } else {
+                this._initApp();
+            }
+        },
+        
+        _initApp: function() {
             // prepare layers
             this.layers.base = $.extend( {}, this.options.baseLayer, { isBaseLayer: true });
             
@@ -137,7 +134,7 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             this.layers.overlays = $.merge( [], separatedLayers.overlays );
 
             // init map
-            this.map = this._initMap( [this.layers.base] );
+            this.map = this._deployMap( [this.layers.base] );
 
             // request maplite layers
             var instance = this;
@@ -171,12 +168,11 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             $( '#OpenLayers_Control_MaximizeDiv', this.element[0] ).append( '<span class="layerPickerLabel">Data</span>' );
             
             //$( 'OpenLayers_Control_MinimizeDiv', this.element[0] ).appendTo( $( 'OpenLayers_Control_MinimizeDiv' ).closest( 'div.layersDiv' ) ).removeAttr( 'style' );
-
         },
         
         // map creation helpers
         
-        _initMap: function( initialLayers ) {
+        _deployMap: function( initialLayers ) {
             var mapBaseOptions = {
                 div: this.element[0],
                 units: UNITS,
@@ -558,9 +554,7 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             this.selectedPoints[id].label = label;
             this._addSelectLayer();
         }
-
     });
-
 })(jQuery, document);
 
 // test helpers

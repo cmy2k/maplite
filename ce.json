@@ -1,3 +1,9 @@
 {
-    "foo": "bar"
+    "baseLayers": [ {
+        "id": "",
+        "type": "arcgis",
+        "name": "Street",
+        "url": "http://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer",
+        "toggle": true
+    }]
 }
