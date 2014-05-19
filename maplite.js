@@ -109,10 +109,10 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             // is external config file-driven?
             if ( this.options.config !== null && typeof this.options.config === 'string' ) {
                 var instance = this;
-                MapConfig( this.options.config ).done( function( options, mapOptions ) {
+                MapConfig( this.options.config ).done( function( options, mapOptions, layers ) {
                     $.extend( instance.options, options );
                     $.extend( instance.options.mapOptions, mapOptions );
-                                        
+                    instance.options.layers = instance.options.layers.concat( layers );
                     instance._initApp();
                 }).fail( function() {
                     $(instance.element[0]).append('<b>Error loading map configuration.</b>');

@@ -12,13 +12,13 @@ function MapConfig( configurationUri ) {
                 // merge the async responses
                 $.extend( translatedConfig.options, translatedConfig.async.options );
                 $.extend( translatedConfig.mapOptions, translatedConfig.async.mapOptions );
-                deferred.resolve( translatedConfig.options, translatedConfig.mapOptions );
+                deferred.resolve( translatedConfig.options, translatedConfig.mapOptions, translatedConfig.layers );
             }, function() { 
                 // one has a failure
                 deferred.reject();
             });
         } else {
-            deferred.resolve( translatedConfig.options, translatedConfig.mapOptions );
+            deferred.resolve( translatedConfig.options, translatedConfig.mapOptions, translatedConfig.layers );
         }
     }).fail( function() {
         deferred.reject();
@@ -28,12 +28,18 @@ function MapConfig( configurationUri ) {
 };
 
 function translateMapConfig( rawJson ) {
-    var config = { options: {}, mapOptions: {}, async: { requests: [], options: {}, mapOptions: {} } };
+    var config = { options: {}, mapOptions: {}, layers: [], async: { requests: [], options: {}, mapOptions: {} } };
 
     // baselayer
     if ( rawJson.hasOwnProperty( 'baseLayers' ) ) {
         // TODO in the future support multiple base layers
         translateBaseLayer( rawJson.baseLayers[0], config );        
+    } 
+    
+    if ( rawJson.hasOwnProperty( 'wms' ) ) {
+        $.each( rawJson.wms, function(){
+            config.layers.push( translateWms( this ) );
+        });
     }
 
     return config;
@@ -70,4 +76,12 @@ function translateBaseLayer( base, config ) {
                 });
             break;
     }
+}
+
+    
+function translateWms( wms ) {
+    return new OpenLayers.Layer.WMS(
+        wms.name,
+        wms.url,
+        {layers: wms.layers, transparent: true});
 }
