@@ -62,12 +62,31 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
     var UNITS = 'm';
     var PROJECTION = 'EPSG:900913';
     var SELECTED_LAYER_NAME = 'lyr_selected';
+    
+    // configuration wrapper
+    function MapConfig( configurationUri ) {
+        var deferred = $.Deferred();
+        
+        var promise = $.getJSON( configurationUri );;
+        
+        promise.done( function( config ){
+            if ( true ) {
+                deferred.resolve( config );
+            } else {
+                deferred.reject( config );
+            }
+        });
+        
+        return deferred.promise();
+    };
+    
 
     $.widget( 'nemac.mapLite', {
         //----------------------------------------------------------------------
         // Defaults
         //----------------------------------------------------------------------
         options: {
+            config: null, // if config provided, will override
             baseLayer: new OpenLayers.Layer.XYZ(
                 'OSM (with buffer)',
                 [
@@ -105,6 +124,8 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
         // Private methods
         //----------------------------------------------------------------------
         _create: function() {
+            // is external config-driven?
+            
             // prepare layers
             this.layers.base = $.extend( {}, this.options.baseLayer, { isBaseLayer: true });
             
