@@ -80,8 +80,21 @@ function translateBaseLayer( base, config ) {
 
     
 function translateWms( wms ) {
-    return new OpenLayers.Layer.WMS(
+    var wmsProps = { 
+        layers: wms.layers, 
+        transparent: true
+    };
+    
+    var layer = new OpenLayers.Layer.WMS(
         wms.name,
         wms.url,
-        {layers: wms.layers, transparent: true});
+        wmsProps);
+
+    if ( wms.hasOwnProperty('projection')) {
+        layer.projection = wms.projection;
+    };
+    
+    layer.id = wms.id;
+    
+    return layer;
 }

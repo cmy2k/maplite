@@ -5,5 +5,17 @@
         "name": "Street",
         "url": "http://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer",
         "toggle": true
+    }],
+    "wms": [ {
+        "id": "aaa",
+        "name": "Drought",
+        "url": "http://torka.unl.edu:8080/cgi-bin/mapserv.exe?map=/ms4w/apps/dm/service/usdm_current_wms.map",
+        "layers": "usdm_current"
+    }, {
+        "id": "aab",
+        "name": "Sea Level Rise (6ft)",
+        "url": "http://csc.noaa.gov/arcgis/services/dc_slr/slr_6ft/MapServer/WMSServer",
+        "projection": "EPSG:3857",
+        "layers": "0"
     }]
 }

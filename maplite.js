@@ -517,6 +517,16 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             //NOTE: layer.redraw() does, though!
             layer.redraw();
         },
+        
+        /*
+         * $(...).mapLite('setLayerVisibility', 'layerId', false);
+         */
+        setLayerVisibility: function( layerId, visible ) {
+            var layer = this.map.getLayer( layerId );
+            if (!layer || layer === null) { return null; }
+            
+            layer.setVisibility( visible );
+        },
 
         getPoint: function(layerId, id) {
            return $.extend( {}, this.pointHash[layerId][id] );
