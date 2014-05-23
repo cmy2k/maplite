@@ -4,7 +4,7 @@
         "type": "arcgis",
         "name": "Street",
         "url": "http://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer",
-        "toggle": true
+        "toggle": false
     }],
     "wms": [ {
         "id": "aaa",
@@ -13,7 +13,7 @@
         "layers": "usdm_current"
     }, {
         "id": "aab",
-        "name": "Sea Level Rise (6ft)",
+        "name": "Sea Level Inundation (6ft)",
         "url": "http://csc.noaa.gov/arcgis/services/dc_slr/slr_6ft/MapServer/WMSServer",
         "projection": "EPSG:3857",
         "layers": "0"

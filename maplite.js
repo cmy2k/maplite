@@ -162,10 +162,99 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             this.map.addLayers( this.layers.overlays );
             
             // deploy selector
-            this.map.addControl(new OpenLayers.Control.LayerSwitcher());
+            //this.map.addControl(new OpenLayers.Control.LayerSwitcher());
+            this._buildLayerSwitcher();
             
-            // customize the layer selector
+        },
+        
+        _buildLayerSwitcher: function() {
+            // deploy minimized state
+            $( 'body' ).append( '<div id="mlMaximizeLayerSwitcher" class="mlMaximize mlSwitcher mlSelect">\n\
+                                     <img src="img/layer-switcher-maximize.png"></img>\n\
+                                     <span class="layerPickerLabel overlayLabel">Data</span>\n\
+                                 </div>');
+            
+            $( '#mlMaximizeLayerSwitcher' ).on( 'click', function(){
+                $( '#mlMaximizeLayerSwitcher' ).hide();
+                $( '#mlLayerSwitcher' ).show();
+            });
+                        
+            // deploy maximized state
+            $( 'body' ).append( '<div id="mlLayerSwitcher" class="mlSwitcher mlLayersDiv">\n\
+                                     <div id="mlMinimizeLayerSwitcher" class="mlMinimize mlSelect">\n\
+                                         <img src="img/layer-switcher-minimize.png"></img>\n\
+                                     </div>\n\
+                                     <div id="mlLayerList"></div>\n\
+                                 </div>');
+            
+            $( '#mlMinimizeLayerSwitcher' ).on( 'click', function(){
+                $( '#mlLayerSwitcher' ).hide();
+                $( '#mlMaximizeLayerSwitcher' ).show();
+            });
+            
+            var instance = this;
+            if ( this.layers.overlays.length > 0 ) {
+                $( '#mlLayerList' ).append( '<span class="mlDataLbl">Overlays</span><div id="mlOverlayList"></div>' );
+                $.each( this.layers.overlays, function() {
+                    $( '#mlOverlayList', '#mlLayerList' ).append( '<div class="mlOverlay"><input id="chk_' + this.id + '" type="checkbox"></input><label for=chk_' + this.id + '>' + this.name + '</label><img id="cfg_' + this.id + '" class="mlCfg" src="img/settings.png"></img></div>' );
+                    instance.setLayerVisibility( this.id, false );
+                });
+            }
+            
+            // bind click
+            $( 'input', '#mlOverlayList' ).click( function() {
+                var id = this.id;
+                var lyr = id.replace( 'chk_', '' );
+                instance.setLayerVisibility( lyr, this.checked );
+            });
+            
+            $( 'img', '#mlOverlayList' ).click( function( e ) {
+                var id = this.id;
+                var lyr = id.replace( 'cfg_', '' );
+                
+                $( '#sliderContainer' ).show( 300 ).offset({
+                    left: e.pageX,
+                    top: e.pageY - 20
+                }).find( 'a' ).off( 'blur' ).on( 'blur', function(){
+                    $( '#sliderContainer' ).hide( 'highlight', { color: '#ffffff' }, 300 );
+                }).focus();
+                
+                
+                $( '#opacitySlider').off( 'slide' );
+                
+                var opacity = Math.round( 100 - instance.getLayerOpacity( lyr ) * 100 );
+                
+                $( '#opacitySlider').on( 'slide', function( event, ui ) {
+                    var val = Math.round(ui.value);
+                    $( '#transparencyLevel' ).text( ui.value + "%" );
+                    instance.setLayerOpacity( lyr, 1 - ui.value / 100 );
+                }).slider( 'value', opacity );
+                
+                $( '#transparencyLevel' ).text( opacity + "%" );
+                
+            });
+            
+            $( '#mlLayerSwitcher' ).hide();
+            
             $( '#OpenLayers_Control_MaximizeDiv', this.element[0] ).append( '<span class="layerPickerLabel overlayLabel">Data</span>' );
+            
+            $( this.element[0] ).append( '<div id="sliderContainer">\n\
+                                    <div id="opacitySlider"></div>\n\
+                                    <div class="sliderLabelContainer">\n\
+                                       <span class="suffix">Transparent</span><span id="transparencyLevel">0%</span>\n\
+                                    </div>\n\
+                                    <div class="clear"></div>\n\
+                                 </div>' );
+
+            $( '#opacitySlider').slider({
+                min: 0,
+                max: 100,
+                stop: function() {
+                    $( '#sliderContainer' ).hide( 'highlight', { color: '#ffffff' }, 300 );
+                }
+            });
+            
+            $( '#sliderContainer' ).hide();
             
             //$( 'OpenLayers_Control_MinimizeDiv', this.element[0] ).appendTo( $( 'OpenLayers_Control_MinimizeDiv' ).closest( 'div.layersDiv' ) ).removeAttr( 'style' );
         },
@@ -526,6 +615,20 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             if (!layer || layer === null) { return null; }
             
             layer.setVisibility( visible );
+        },
+        
+        setLayerOpacity: function( layerId, opacity ) {
+            var layer = this.map.getLayer( layerId );
+            if (!layer || layer === null) { return null; }
+            
+            layer.setOpacity( opacity );
+        },
+        
+        getLayerOpacity: function( layerId ) {
+            var layer = this.map.getLayer( layerId );
+            if (!layer || layer === null) { return null; }
+            
+            return layer.opacity;
         },
 
         getPoint: function(layerId, id) {
