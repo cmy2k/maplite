@@ -92,7 +92,7 @@ div.olControlTextButtonPanel.vertical .olButton:last-child {
 .mlLayersDiv {
     min-width: 17em;
     padding: 0 8px 3px 8px;
-    background: none repeat scroll 0 0 rgba(255, 255, 255, 0.4);
+    background: none repeat scroll 0 0 rgba(255, 255, 255, 0.6);
 }
 
 .mlMinimize {
@@ -104,16 +104,16 @@ div.olControlTextButtonPanel.vertical .olButton:last-child {
     font-weight: 700;
 }
 
-.mlOverlay {
+.mlLayerSelect {
     margin: 0 10px;
 }
 
-.mlOverlay > label {
+.mlLayerSelect > label {
     margin-left: 3px;
     vertical-align: top;
 }
 
-.mlOverlay:hover > img {
+.mlLayerSelect:hover > img {
     display: inline
 }
 

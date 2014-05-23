@@ -197,7 +197,7 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             if ( this.layers.overlays.length > 0 ) {
                 $( '#mlLayerList' ).append( '<span class="mlDataLbl">Overlays</span><div id="mlOverlayList"></div>' );
                 $.each( this.layers.overlays, function() {
-                    $( '#mlOverlayList', '#mlLayerList' ).append( '<div class="mlOverlay"><input id="chk_' + this.id + '" type="checkbox"></input><label for=chk_' + this.id + '>' + this.name + '</label><img id="cfg_' + this.id + '" class="mlCfg" src="img/settings.png"></img></div>' );
+                    $( '#mlOverlayList', '#mlLayerList' ).append( '<div class="mlLayerSelect"><input id="chk_' + this.id + '" type="checkbox"></input><label for=chk_' + this.id + '>' + this.name + '</label><img id="cfg_' + this.id + '" class="mlCfg" src="img/settings.png"></img></div>' );
                     instance.setLayerVisibility( this.id, false );
                 });
             }
