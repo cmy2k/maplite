@@ -87,7 +87,8 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             moveCallback: null,
             priorityDataKey: 'weight',
             selectCallback: null,
-            selectedColor: MARKER_COLORS.BLUE
+            selectedColor: MARKER_COLORS.BLUE,
+            changeOpacityCallback: null
         },
         
         //----------------------------------------------------------------------
@@ -219,15 +220,17 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
                     $( '#sliderContainer' ).hide( 'highlight', { color: '#ffffff' }, 300 );
                 }).focus();
                 
-                
                 $( '#opacitySlider').off( 'slide' );
                 
                 var opacity = Math.round( 100 - instance.getLayerOpacity( lyr ) * 100 );
                 
                 $( '#opacitySlider').on( 'slide', function( event, ui ) {
                     var val = Math.round(ui.value);
-                    $( '#transparencyLevel' ).text( ui.value + "%" );
-                    instance.setLayerOpacity( lyr, 1 - ui.value / 100 );
+                    $( '#transparencyLevel' ).text( val + "%" );
+                    instance.setLayerOpacity( lyr, 1 - val / 100 );
+                    if (instance.options.changeOpacityCallback !== null && typeof instance.options.changeOpacityCallback === 'function' ) {
+                        instance.options.changeOpacityCallback( lyr, 1 - val / 100 );
+                    }
                 }).slider( 'value', opacity );
                 
                 $( '#transparencyLevel' ).text( opacity + "%" );
