@@ -88,7 +88,8 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             priorityDataKey: 'weight',
             selectCallback: null,
             selectedColor: MARKER_COLORS.BLUE,
-            changeOpacityCallback: null
+            changeOpacityCallback: null,
+            layerToggleCallback: null
         },
         
         //----------------------------------------------------------------------
@@ -204,9 +205,12 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             
             // bind click
             $( 'input', '#mlOverlayList' ).click( function() {
-                var id = this.id;
-                var lyr = id.replace( 'chk_', '' );
+                var lyr = this.id.replace( 'chk_', '' );
                 instance.setLayerVisibility( lyr, this.checked );
+                
+                if (instance.options.layerToggleCallback !== null && typeof instance.options.layerToggleCallback === 'function' ) {
+                    instance.options.layerToggleCallback( lyr, this.checked );
+                }
             });
             
             $( 'img', '#mlOverlayList' ).click( function( e ) {
@@ -618,6 +622,8 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             if (!layer || layer === null) { return null; }
             
             layer.setVisibility( visible );
+            
+            $( 'chk_' + layerId ).prop( 'checked', visible);
         },
         
         setLayerOpacity: function( layerId, opacity ) {
