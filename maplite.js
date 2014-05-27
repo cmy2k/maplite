@@ -195,6 +195,7 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             });
             
             var instance = this;
+            
             if ( this.layers.overlays.length > 0 ) {
                 $( '#mlLayerList' ).append( '<span class="mlDataLbl">Overlays</span><div id="mlOverlayList"></div>' );
                 $.each( this.layers.overlays, function() {
@@ -213,32 +214,42 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
                 }
             });
             
+            // bind open opacity slider
             $( 'img', '#mlOverlayList' ).click( function( e ) {
-                var id = this.id;
-                var lyr = id.replace( 'cfg_', '' );
+                var lyr = this.id.replace( 'cfg_', '' );
                 
-                $( '#sliderContainer' ).show( 300 ).offset({
-                    left: e.pageX,
-                    top: e.pageY - 20
-                }).find( 'a' ).off( 'blur' ).on( 'blur', function(){
-                    $( '#sliderContainer' ).hide( 'highlight', { color: '#ffffff' }, 300 );
-                }).focus();
+                $( '#sliderContainer' )
+                    .show( 300 ).offset({
+                        left: e.pageX,
+                        top: e.pageY - 20 })
+                    .find( 'a' )
+                    .off( 'blur' )
+                    .on( 'blur', function(){
+                        $( '#sliderContainer' ).hide( 'highlight', { color: '#ffffff' }, 300 ); })
+                    .focus();
                 
                 $( '#opacitySlider').off( 'slide' );
                 
                 var opacity = Math.round( 100 - instance.getLayerOpacity( lyr ) * 100 );
                 
-                $( '#opacitySlider').on( 'slide', function( event, ui ) {
-                    var val = Math.round(ui.value);
-                    $( '#transparencyLevel' ).text( val + "%" );
-                    instance.setLayerOpacity( lyr, 1 - val / 100 );
-                    if (instance.options.changeOpacityCallback !== null && typeof instance.options.changeOpacityCallback === 'function' ) {
-                        instance.options.changeOpacityCallback( lyr, 1 - val / 100 );
-                    }
-                }).slider( 'value', opacity );
+                $( '#opacitySlider')
+                    .off( 'slide' )
+                    .on( 'slide', function( e, ui ) {
+                        var val = Math.round(ui.value);
+                        $( '#transparencyLevel' ).text( val + "%" );
+                        instance.setLayerOpacity( lyr, 1 - val / 100 ); })
+                    .off( 'slidestop' )
+                    .on( 'slidestop', function( e, ui ) {
+                        $( '#sliderContainer' ).hide( 'highlight', { color: '#ffffff' }, 300 );
+                        
+                        var val = Math.round(ui.value);
+                    
+                        if (instance.options.changeOpacityCallback !== null && typeof instance.options.changeOpacityCallback === 'function' ) {
+                            instance.options.changeOpacityCallback( lyr, 1 - val / 100 );
+                        } })
+                    .slider( 'value', opacity );
                 
                 $( '#transparencyLevel' ).text( opacity + "%" );
-                
             });
             
             $( '#mlLayerSwitcher' ).hide();
@@ -255,10 +266,7 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
 
             $( '#opacitySlider').slider({
                 min: 0,
-                max: 100,
-                stop: function() {
-                    $( '#sliderContainer' ).hide( 'highlight', { color: '#ffffff' }, 300 );
-                }
+                max: 100
             });
             
             $( '#sliderContainer' ).hide();
