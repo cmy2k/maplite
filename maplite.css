@@ -92,7 +92,7 @@ div.olControlTextButtonPanel.vertical .olButton:last-child {
 .mlLayersDiv {
     min-width: 17em;
     padding: 0 8px 3px 8px;
-    background: none repeat scroll 0 0 rgba(255, 255, 255, 0.7);
+    background: none repeat scroll 0 0 rgba(255, 255, 255, 0.95);
 }
 
 .mlMinimize {
