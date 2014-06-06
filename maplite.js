@@ -69,7 +69,7 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
         //----------------------------------------------------------------------
         options: {
             config: null, // if config provided, will override any parameters included
-            baseLayer: new OpenLayers.Layer.XYZ(
+            baseLayers: [ new OpenLayers.Layer.XYZ(
                 'OSM (with buffer)',
                 [
                     'http://a.tile.openstreetmap.org/${z}/${x}/${y}.png',
@@ -79,7 +79,8 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
                     transitionEffect: 'resize',
                     buffer: 2,
                     sphericalMercator: true
-                }),
+                }) 
+            ],
             layers: [],
             mapOptions: {},
             iconPath: ICON_PATH,
@@ -95,7 +96,7 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
         //----------------------------------------------------------------------
         // Private vars
         //----------------------------------------------------------------------
-        layers: { base: {}, maplight: [], overlays: [] },
+        layers: { base: [], maplight: [], overlays: [] },
         selectLayer: null,
         mapliteLayerCache: {},
         pointHash: {},
@@ -126,7 +127,13 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
         
         _initApp: function() {
             // prepare layers
-            this.layers.base = $.extend( {}, this.options.baseLayer, { isBaseLayer: true });
+            $.each( this.options.baseLayers, function(){
+                $.extend( {}, this, { isBaseLayer: true });
+            });
+
+            this.layers.base = this.options.baseLayers;
+            
+            //var initialBase = this.layers.base[0];        
             
             var separatedLayers = this._separateLayersByType( this.options.layers );
             this.layers.maplight = separatedLayers.maplight;
@@ -136,7 +143,8 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             this.layers.overlays = $.merge( [], separatedLayers.overlays );
 
             // init map
-            this.map = this._deployMap( [this.layers.base] );
+            //this.map = this._deployMap( this.layers.base );
+            this.map = this._deployMap( this.layers.base );
 
             // request maplite layers
             var instance = this;
@@ -160,7 +168,8 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
                 }
             });
             
-            // add overlays
+            // add layers
+            this.map.addLayers( this.layers.base );
             this.map.addLayers( this.layers.overlays );
             
             // deploy selector
@@ -620,6 +629,14 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             //layer.refresh({force:true});
             //NOTE: layer.redraw() does, though!
             layer.redraw();
+        },
+        
+        setBaseLayer: function( layerId ) {
+            var layer = this.map.getLayer( layerId );
+            
+            if ( layer && layer.isBaseLayer ) {
+                this.map.setBaseLayer( layer );
+            }
         },
         
         /*

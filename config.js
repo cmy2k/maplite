@@ -28,12 +28,15 @@ function MapConfig( configurationUri ) {
 };
 
 function translateMapConfig( rawJson ) {
-    var config = { options: {}, mapOptions: {}, layers: [], async: { requests: [], options: {}, mapOptions: {} } };
+    var config = { options: {}, mapOptions: {}, layers: [], async: { requests: [], options: { baseLayers: [] }, mapOptions: {} } };
 
     // baselayer
     if ( rawJson.hasOwnProperty( 'baseLayers' ) ) {
         // TODO in the future support multiple base layers
-        translateBaseLayer( rawJson.baseLayers[0], config );        
+        rawJson.baseLayers.forEach( function( layer ) {
+            translateBaseLayer( layer, config );
+        });
+        
     } 
     
     if ( rawJson.hasOwnProperty( 'wms' ) ) {
@@ -52,18 +55,21 @@ function translateBaseLayer( base, config ) {
                 url: base.url + '?f=json&pretty=true',
                 dataType: "jsonp",
                 success: function ( info ) {
-                    config.async.options.baseLayer = new OpenLayers.Layer.ArcGISCache( base.name, base.url, {
-                        layerInfo: info,
-                        displayInLayerSwitcher: base.toggle
+                    var bLyr = new OpenLayers.Layer.ArcGISCache( base.name, base.url, {
+                        layerInfo: info
                     });
                     
-                    config.async.mapOptions.resolutions = config.async.options.baseLayer.resolutions;
+                    bLyr.id = base.id;
+                    
+                    config.async.options.baseLayers.push( bLyr );
+                    
+                    config.async.mapOptions.resolutions = bLyr.resolutions;
                 }
             }));
             
             break;
         default :
-            config.options.baseLayer = new OpenLayers.Layer.XYZ(
+            var bLyr = new OpenLayers.Layer.XYZ(
                 'OSM (with buffer)',
                 [
                     'http://a.tile.openstreetmap.org/${z}/${x}/${y}.png',
@@ -72,8 +78,11 @@ function translateBaseLayer( base, config ) {
                 ], {
                     transitionEffect: 'resize',
                     buffer: 2,
-                    sphericalMercator: true
-                });
+                    sphericalMercator: true });
+            
+            bLyr.id = base.id;
+            
+            config.options.baseLayers = [ bLyr ];
             break;
     }
 }

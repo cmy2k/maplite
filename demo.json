@@ -1,11 +1,16 @@
 {
     "baseLayers": [ {
-        "id": "",
+        "id": "base_street",
         "type": "arcgis",
         "name": "Street",
         "url": "http://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer",
-        "toggle": false
-    }],
+        "default": true
+    }, {
+        "id": "base_image",
+        "type": "arcgis",
+        "name": "Imagery",
+        "url": "http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer"
+    } ],
     "wms": [ {
         "id": "aaa",
         "name": "Drought",
@@ -17,5 +22,5 @@
         "url": "http://csc.noaa.gov/arcgis/services/dc_slr/slr_6ft/MapServer/WMSServer",
         "projection": "EPSG:3857",
         "layers": "0"
-    }]
+    } ]
 }
