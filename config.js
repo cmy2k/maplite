@@ -10,7 +10,7 @@ function MapConfig( configurationUri ) {
         if ( translatedConfig.async.requests.length > 0 ) {
             $.when.apply( $, translatedConfig.async.requests ).then( function() {
                 // merge the async responses
-                $.extend( translatedConfig.options, translatedConfig.async.options );
+                $.extend( translatedConfig.layers.base, translatedConfig.async.layers.base );
                 $.extend( translatedConfig.mapOptions, translatedConfig.async.mapOptions );
                 deferred.resolve( translatedConfig.options, translatedConfig.mapOptions, translatedConfig.layers );
             }, function() { 
@@ -28,7 +28,23 @@ function MapConfig( configurationUri ) {
 };
 
 function translateMapConfig( rawJson ) {
-    var config = { options: {}, mapOptions: {}, layers: [], async: { requests: [], options: { baseLayers: [] }, mapOptions: {} } };
+    var config = {
+        options: {},
+        mapOptions: {},
+        layers: {
+            base: [],
+            overlays: [],
+            themes: []
+        },
+        async: {
+            requests: [],
+            options: {},
+            mapOptions: {},
+            layers: {
+                base: []
+            }
+        }
+    };
 
     // baselayer
     if ( rawJson.hasOwnProperty( 'baseLayers' ) ) {
@@ -36,12 +52,11 @@ function translateMapConfig( rawJson ) {
         rawJson.baseLayers.forEach( function( layer ) {
             translateBaseLayer( layer, config );
         });
-        
-    } 
+    }
     
-    if ( rawJson.hasOwnProperty( 'statics' ) ) {
-        $.each( rawJson.statics, function(){
-            config.layers.push( translateWms( this ) );
+    if ( rawJson.hasOwnProperty( 'overlays' ) ) {
+        $.each( rawJson.overlays, function(){
+            config.layers.overlays.push( translateWms( this ) );
         });
     }
     
@@ -66,7 +81,7 @@ function translateBaseLayer( base, config ) {
                     bLyr.id = base.id;
                     bLyr.isDefault = base.isDefault;
                     
-                    config.async.options.baseLayers.push( bLyr );
+                    config.async.layers.base.push( bLyr );
                     
                     config.async.mapOptions.resolutions = bLyr.resolutions;
                 }

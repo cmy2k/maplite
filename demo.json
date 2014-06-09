@@ -11,7 +11,7 @@
         "name": "Imagery",
         "url": "http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer"
     } ],
-    "statics": [ {
+    "overlays": [ {
         "id": "aaa",
         "name": "Drought",
         "url": "http://torka.unl.edu:8080/cgi-bin/mapserv.exe?map=/ms4w/apps/dm/service/usdm_current_wms.map",
