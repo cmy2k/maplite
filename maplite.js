@@ -69,7 +69,7 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
         //----------------------------------------------------------------------
         options: {
             config: null, // if config provided, will override any parameters included
-            layers: { base: [ new OpenLayers.Layer.XYZ(
+            layers: { bases: [ new OpenLayers.Layer.XYZ(
                 'OSM (with buffer)',
                 [
                     'http://a.tile.openstreetmap.org/${z}/${x}/${y}.png',
@@ -80,7 +80,7 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
                     buffer: 2,
                     sphericalMercator: true
                 }) 
-            ], maplite: [], overlays: [], themes: [] },
+            ], maplite: [], overlays: {}, groups: [] },
             mapOptions: {},
             iconPath: ICON_PATH,
             zoomCallback: null,
@@ -89,13 +89,15 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             selectCallback: null,
             selectedColor: MARKER_COLORS.BLUE,
             changeOpacityCallback: null,
-            layerToggleCallback: null
+            layerToggleCallback: null,
+            baseLayerSelectCallback: null,
+            groupSelectCallback: null
         },
         
         //----------------------------------------------------------------------
         // Private vars
         //----------------------------------------------------------------------
-        layers: { base: [], maplite: [], overlays: [], themes: [] },
+        layers: { bases: [], maplite: [], overlays: {}, groups: [] },
         selectLayer: null,
         mapliteLayerCache: {},
         pointHash: {},
@@ -127,43 +129,37 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
         
         _initApp: function() {
             // prepare layers
-            var defaultBase = null;
+            var defaultBase = this.layers.bases[0];
             
-            $.each( this.layers.base, function(){
+            $.each( this.layers.bases, function(){
                 $.extend( {}, this, { isBaseLayer: true });
                 if ( this.isDefault ) defaultBase = this;
             });
             
-            $.each( this.layers.overlays, function( i, layer ) {
-                $.extend( layer, {isBaseLayer: false} );
-            });
-
             // init map
-            this.map = this._deployMap( this.layers.base );
+            this.map = this._deployMap( this.layers.bases );
             
             // request maplite layers
-            
             if ( this.layers.maplite.length > 0 ) {
                 var instance = this;
                 var requests = [];
                 
                 $.each( this.layers.maplite, function( i, mapliteLayer ) {
                     requests.push(
-                            $.get( mapliteLayer.url )
-                            .success( function( points ){
-                                instance.filters[mapliteLayer.id] = instance._buildFilterFunctionCache( mapliteLayer.filter, points );
-                        instance.pointHash[mapliteLayer.id] = instance._hashPoints( points );
-                    })
-                            );
+                        $.get( mapliteLayer.url )
+                        .success( function( points ){
+                            instance.filters[mapliteLayer.id] = instance._buildFilterFunctionCache( mapliteLayer.filter, points );
+                            instance.pointHash[mapliteLayer.id] = instance._hashPoints( points );
+                        })
+                    );
                 });
                 
                 $.when.apply( $, requests ).done( function() {
                     instance._scaleMapliteMarkers();
                     
                     // do the rest of the deployment -- this is to avoid a race condition that sometimes happens with openlayers
-                    instance.map.addLayers( instance.layers.overlays );
                     instance._buildLayerSwitcher();
-                    if ( defaultBase !== null ) instance.setBaseLayer( defaultBase.id );
+                    instance.setBaseLayer( defaultBase.id );
                     
                     if (instance.options.onCreate !== null && typeof instance.options.onCreate === 'function' ) {
                         instance.options.onCreate(instance);
@@ -171,9 +167,8 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
                 });
                 
             } else {
-                this.map.addLayers( this.layers.overlays );
                 this._buildLayerSwitcher();
-                if ( defaultBase !== null ) this.setBaseLayer( defaultBase.id );
+                this.setBaseLayer( defaultBase.id );
             }
         },
         
@@ -204,74 +199,49 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             
             var instance = this;
             
-            if ( this.layers.base.length > 1 ) {
+            // base layers
+            if ( this.layers.bases.length > 1 ) {
                 $( '#mlLayerList' ).append( '<span class="mlDataLbl">Base Layers</span><div class="mlLayerSelect"><select id="mlBaseList"></select></div>' );
                 
                 var baseList = '';
-                $.each( this.layers.base, function() {
+                $.each( this.layers.bases, function() {
                     baseList += '<option value="' + this.id + '">' + this.name + '</option>';
                 });
                                 
                 $( '#mlBaseList', '#mlLayerList').append( baseList ).on( 'change', function(){
                     instance.setBaseLayer( $(this).val() );
-                });
-            }
-            
-            if ( this.layers.overlays.length > 0 ) {
-                $( '#mlLayerList' ).append( '<span class="mlDataLbl">Overlays</span><div id="mlOverlayList"></div>' );
-                $.each( this.layers.overlays, function() {
-                    $( '#mlOverlayList', '#mlLayerList' ).append( '<div class="mlLayerSelect"><input id="chk_' + this.id + '" type="checkbox"></input><label for=chk_' + this.id + '>' + this.name + '</label><img id="cfg_' + this.id + '" class="mlCfg" src="img/settings.png"></img></div>' );
-                    instance.setLayerVisibility( this.id, false );
-                });
-            }
-            
-            // bind click
-            $( 'input', '#mlOverlayList' ).click( function() {
-                var lyr = this.id.replace( 'chk_', '' );
-                instance.setLayerVisibility( lyr, this.checked );
-                
-                if (instance.options.layerToggleCallback !== null && typeof instance.options.layerToggleCallback === 'function' ) {
-                    instance.options.layerToggleCallback( lyr, this.checked );
-                }
-            });
-            
-            // bind open opacity slider
-            $( 'img', '#mlOverlayList' ).click( function( e ) {
-                var lyr = this.id.replace( 'cfg_', '' );
-                
-                $( '#sliderContainer' )
-                    .show( 300 ).offset({
-                        left: e.pageX,
-                        top: e.pageY - 20 })
-                    .find( 'a' )
-                    .off( 'blur' )
-                    .on( 'blur', function(){
-                        $( '#sliderContainer' ).hide( 'highlight', { color: '#ffffff' }, 300 ); })
-                    .focus();
-                
-                $( '#opacitySlider').off( 'slide' );
-                
-                var opacity = Math.round( 100 - instance.getLayerOpacity( lyr ) * 100 );
-                
-                $( '#opacitySlider')
-                    .off( 'slide' )
-                    .on( 'slide', function( e, ui ) {
-                        var val = Math.round(ui.value);
-                        $( '#transparencyLevel' ).text( val + "%" );
-                        instance.setLayerOpacity( lyr, 1 - val / 100 ); })
-                    .off( 'slidestop' )
-                    .on( 'slidestop', function( e, ui ) {
-                        $( '#sliderContainer' ).hide( 'highlight', { color: '#ffffff' }, 300 );
-                        
-                        var val = Math.round(ui.value);
                     
-                        if (instance.options.changeOpacityCallback !== null && typeof instance.options.changeOpacityCallback === 'function' ) {
-                            instance.options.changeOpacityCallback( lyr, 1 - val / 100 );
-                        } })
-                    .slider( 'value', opacity );
+                    if (instance.options.baseLayerSelectCallback !== null && typeof instance.options.baseLayerSelectCallback === 'function' ) {
+                        instance.options.baseLayerSelectCallback( $(this).val() );
+                    }
+                });
+            }
+            
+            // groups
+            var defaultGroup = this.layers.groups[0];
+            $( '#mlLayerList' ).append( '<span id="mlGroupLabel" class="mlDataLbl">Themes</span><div class="mlLayerSelect"><div id="mlGroupLayers"></div></div>' );
+            if ( this.layers.groups.length > 1 ) {
+                $( '#mlGroupLayers', '#mlLayerList' ).before('<select id="mlGroupList"></select>');
                 
-                $( '#transparencyLevel' ).text( opacity + "%" );
-            });
+                var groupList = '';
+                $.each( this.layers.groups, function() {
+                    groupList += '<option value="' + this.id + '">' + this.name + '</option>';
+                    if ( this.isDefault ) defaultGroup = this;
+                });
+                
+                $( '#mlGroupList', '#mlLayerList').append( groupList ).on( 'change', function(){
+                    instance.setGroup( $(this).val() );
+                    
+                    if (instance.options.groupSelectCallback !== null && typeof instance.options.groupSelectCallback === 'function' ) {
+                        instance.options.groupSelectCallback( $(this).val() );
+                    }
+                });
+            } else if ( this.layers.groups.length === 1 ) {
+                $( '#mlGroupLabel', '#mlLayerList').text( this.layers.groups[0].name );
+            }
+            instance.setGroup( defaultGroup.id );
+            
+            // attach transparency slider (used by individual overlays)
             
             $( '#mlLayerSwitcher' ).hide();
             
@@ -292,7 +262,7 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             
             $( '#sliderContainer' ).hide();
         },
-        
+                
         // map creation helpers
         
         _deployMap: function( initialLayers ) {
@@ -583,6 +553,12 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             }).appendTo('#' + baseId);
         },
         
+        _addOverlay: function( id ) {
+            if ( this.map.getLayer( id ) === null ) {
+                this.map.addLayer( this.layers.overlays[id] );
+            }
+        },
+        
         //----------------------------------------------------------------------
         // Public methods
         //----------------------------------------------------------------------
@@ -626,6 +602,89 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
                 this.map.setBaseLayer( layer );
                 $( '#mlBaseList', '#mlLayerList').val( layerId );
             }
+        },
+        
+        setGroup: function( groupId ) {
+            var group = null;
+            $.each( this.layers.groups, function(){
+                if ( this.id === groupId ) {
+                    group = this;
+                    return false;
+                }
+            });
+            
+            if ( group === null ) return;
+            
+            $( '#mlGroupList', '#mlLayerList').val( groupId );
+
+            var instance = this;
+            
+            // kill all current layers
+            $( 'input', '#mlGroupLayers' ).each( function(){
+                if ( $(this).is(':checked') ) {
+                    $( this ).attr( 'checked', false );
+                    instance.setLayerVisibility( this.id.replace( 'chk_', ''), false );
+                }
+            });
+
+            $( '#mlGroupLayers' ).empty();
+            
+            $.each( group.layers, function() {
+                instance._addOverlay( this );
+                var lyr = instance.layers.overlays[this];
+                var id = lyr.id;
+                var name = lyr.name;
+                $('#mlGroupLayers', '#mlLayerList').append( '<div class="mlLayerSelect"><input id="chk_' + id + '" type="checkbox"></input><label for=chk_' + id + '>' + name + '</label><img id="cfg_' + id + '" class="mlCfg" src="img/settings.png"></img></div>' );
+                instance.setLayerVisibility( this, false );
+            });
+            
+            // bind click
+            $( 'input', '#mlGroupLayers' ).click( function() {
+                var lyr = this.id.replace( 'chk_', '' );
+                instance.setLayerVisibility( lyr, this.checked );
+                
+                if (instance.options.layerToggleCallback !== null && typeof instance.options.layerToggleCallback === 'function' ) {
+                    instance.options.layerToggleCallback( lyr, this.checked );
+                }
+            });
+            
+            // bind open opacity slider
+            $( 'img', '#mlGroupLayers' ).click( function( e ) {
+                var lyr = this.id.replace( 'cfg_', '' );
+                
+                $( '#sliderContainer' )
+                    .show( 300 ).offset({
+                        left: e.pageX,
+                        top: e.pageY - 20 })
+                    .find( 'a' )
+                    .off( 'blur' )
+                    .on( 'blur', function(){
+                        $( '#sliderContainer' ).hide( 'highlight', { color: '#ffffff' }, 300 ); })
+                    .focus();
+                
+                $( '#opacitySlider').off( 'slide' );
+                
+                var opacity = Math.round( 100 - instance.getLayerOpacity( lyr ) * 100 );
+                
+                $( '#opacitySlider')
+                    .off( 'slide' )
+                    .on( 'slide', function( e, ui ) {
+                        var val = Math.round(ui.value);
+                        $( '#transparencyLevel' ).text( val + "%" );
+                        instance.setLayerOpacity( lyr, 1 - val / 100 ); })
+                    .off( 'slidestop' )
+                    .on( 'slidestop', function( e, ui ) {
+                        $( '#sliderContainer' ).hide( 'highlight', { color: '#ffffff' }, 300 );
+                        
+                        var val = Math.round(ui.value);
+                    
+                        if (instance.options.changeOpacityCallback !== null && typeof instance.options.changeOpacityCallback === 'function' ) {
+                            instance.options.changeOpacityCallback( lyr, 1 - val / 100 );
+                        } })
+                    .slider( 'value', opacity );
+                
+                $( '#transparencyLevel' ).text( opacity + "%" );
+            });
         },
         
         /*

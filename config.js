@@ -10,7 +10,7 @@ function MapConfig( configurationUri ) {
         if ( translatedConfig.async.requests.length > 0 ) {
             $.when.apply( $, translatedConfig.async.requests ).then( function() {
                 // merge the async responses
-                $.extend( translatedConfig.layers.base, translatedConfig.async.layers.base );
+                $.extend( translatedConfig.layers.bases, translatedConfig.async.layers.bases );
                 $.extend( translatedConfig.mapOptions, translatedConfig.async.mapOptions );
                 deferred.resolve( translatedConfig.options, translatedConfig.mapOptions, translatedConfig.layers );
             }, function() { 
@@ -32,36 +32,35 @@ function translateMapConfig( rawJson ) {
         options: {},
         mapOptions: {},
         layers: {
-            base: [],
-            overlays: [],
-            themes: []
+            bases: [],
+            overlays: {},
+            groups: []
         },
         async: {
             requests: [],
             options: {},
             mapOptions: {},
             layers: {
-                base: []
+                bases: []
             }
         }
     };
 
     // baselayer
-    if ( rawJson.hasOwnProperty( 'baseLayers' ) ) {
-        // TODO in the future support multiple base layers
-        rawJson.baseLayers.forEach( function( layer ) {
+    if ( rawJson.hasOwnProperty( 'bases' ) ) {
+        rawJson.bases.forEach( function( layer ) {
             translateBaseLayer( layer, config );
         });
     }
     
     if ( rawJson.hasOwnProperty( 'overlays' ) ) {
         $.each( rawJson.overlays, function(){
-            config.layers.overlays.push( translateWms( this ) );
+            config.layers.overlays[this.id] = translateWms( this );
         });
     }
     
-    if ( rawJson.hasOwnProperty( 'themes' ) ) {
-        
+    if ( rawJson.hasOwnProperty( 'groups' ) ) {
+        config.layers.groups = rawJson.groups;
     }
 
     return config;
@@ -81,7 +80,7 @@ function translateBaseLayer( base, config ) {
                     bLyr.id = base.id;
                     bLyr.isDefault = base.isDefault;
                     
-                    config.async.layers.base.push( bLyr );
+                    config.async.layers.bases.push( bLyr );
                     
                     config.async.mapOptions.resolutions = bLyr.resolutions;
                 }
@@ -102,7 +101,7 @@ function translateBaseLayer( base, config ) {
             
             bLyr.id = base.id;
             
-            config.options.baseLayers = [ bLyr ];
+            config.layers.bases.push( bLyr );
             break;
     }
 }
@@ -124,6 +123,7 @@ function translateWms( wms ) {
     };
     
     layer.id = wms.id;
+    layer.isBaseLayer = false;
     
     return layer;
 }
