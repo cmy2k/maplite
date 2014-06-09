@@ -623,7 +623,12 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             $( 'input', '#mlGroupLayers' ).each( function(){
                 if ( $(this).is(':checked') ) {
                     $( this ).attr( 'checked', false );
-                    instance.setLayerVisibility( this.id.replace( 'chk_', ''), false );
+                    var lyr = this.id.replace( 'chk_', '');
+                    instance.setLayerVisibility( lyr, false );
+                    
+                    if (instance.options.layerToggleCallback !== null && typeof instance.options.layerToggleCallback === 'function' ) {
+                        instance.options.layerToggleCallback( lyr, false );
+                    }
                 }
             });
 
