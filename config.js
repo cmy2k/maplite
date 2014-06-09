@@ -39,10 +39,14 @@ function translateMapConfig( rawJson ) {
         
     } 
     
-    if ( rawJson.hasOwnProperty( 'wms' ) ) {
-        $.each( rawJson.wms, function(){
+    if ( rawJson.hasOwnProperty( 'statics' ) ) {
+        $.each( rawJson.statics, function(){
             config.layers.push( translateWms( this ) );
         });
+    }
+    
+    if ( rawJson.hasOwnProperty( 'themes' ) ) {
+        
     }
 
     return config;
@@ -60,6 +64,7 @@ function translateBaseLayer( base, config ) {
                     });
                     
                     bLyr.id = base.id;
+                    bLyr.isDefault = base.isDefault;
                     
                     config.async.options.baseLayers.push( bLyr );
                     

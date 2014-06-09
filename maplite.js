@@ -127,8 +127,11 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
         
         _initApp: function() {
             // prepare layers
+            var defaultBase = null;
+            
             $.each( this.options.baseLayers, function(){
                 $.extend( {}, this, { isBaseLayer: true });
+                if ( this.isDefault ) defaultBase = this;
             });
 
             this.layers.base = this.options.baseLayers;
@@ -170,11 +173,15 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             
             // add layers
             this.map.addLayers( this.layers.base );
+            
             this.map.addLayers( this.layers.overlays );
             
             // deploy selector
             //this.map.addControl(new OpenLayers.Control.LayerSwitcher());
             this._buildLayerSwitcher();
+            
+            // select default map - do it after switcher is built in order to set the selector
+            if ( defaultBase !== null ) this.setBaseLayer( defaultBase.id );
             
         },
         
@@ -204,6 +211,19 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             });
             
             var instance = this;
+            
+            if ( this.layers.base.length > 1 ) {
+                $( '#mlLayerList' ).append( '<span class="mlDataLbl">Base Layers</span><div class="mlLayerSelect"><select id="mlBaseList"></select></div>' );
+                
+                var baseList = '';
+                $.each( this.layers.base, function() {
+                    baseList += '<option value="' + this.id + '">' + this.name + '</option>';
+                });
+                                
+                $( '#mlBaseList', '#mlLayerList').append( baseList ).on( 'change', function(){
+                    instance.setBaseLayer( $(this).val() );
+                });
+            }
             
             if ( this.layers.overlays.length > 0 ) {
                 $( '#mlLayerList' ).append( '<span class="mlDataLbl">Overlays</span><div id="mlOverlayList"></div>' );
@@ -636,6 +656,7 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             
             if ( layer && layer.isBaseLayer ) {
                 this.map.setBaseLayer( layer );
+                $( '#mlBaseList', '#mlLayerList').val( layerId );
             }
         },
         
