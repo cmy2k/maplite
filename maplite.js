@@ -648,7 +648,7 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             
             layer.setVisibility( visible );
             
-            $( 'chk_' + layerId ).prop( 'checked', visible);
+            $( '#chk_' + layerId ).prop( 'checked', visible);
         },
         
         setLayerOpacity: function( layerId, opacity ) {
