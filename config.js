@@ -1,28 +1,24 @@
 // map configuration utils
-function MapConfig( configurationUri ) {
+function MapConfig( config ) {
     var deferred = $.Deferred();
 
-    $.getJSON( configurationUri ).done( function( data ){
-        // perform translations
-        var translatedConfig = translateMapConfig( data );
-        
-        // check if any async calls need to be resolved before sending back
-        if ( translatedConfig.async.requests.length > 0 ) {
-            $.when.apply( $, translatedConfig.async.requests ).then( function() {
-                // merge the async responses
-                $.extend( translatedConfig.layers.bases, translatedConfig.async.layers.bases );
-                $.extend( translatedConfig.mapOptions, translatedConfig.async.mapOptions );
-                deferred.resolve( translatedConfig.options, translatedConfig.mapOptions, translatedConfig.layers );
-            }, function() { 
-                // one has a failure
-                deferred.reject();
-            });
-        } else {
+    // perform translations
+    var translatedConfig = translateMapConfig( config );
+
+    // check if any async calls need to be resolved before sending back
+    if ( translatedConfig.async.requests.length > 0 ) {
+        $.when.apply( $, translatedConfig.async.requests ).then( function() {
+            // merge the async responses
+            $.extend( translatedConfig.layers.bases, translatedConfig.async.layers.bases );
+            $.extend( translatedConfig.mapOptions, translatedConfig.async.mapOptions );
             deferred.resolve( translatedConfig.options, translatedConfig.mapOptions, translatedConfig.layers );
-        }
-    }).fail( function() {
-        deferred.reject();
-    });
+        }, function() { 
+            // one has a failure
+            deferred.reject();
+        });
+    } else {
+        deferred.resolve( translatedConfig.options, translatedConfig.mapOptions, translatedConfig.layers );
+    }
 
     return deferred.promise();
 };

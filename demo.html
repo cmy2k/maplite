@@ -21,10 +21,11 @@
         <script src="config.js"></script>
         <script src="maplite.js"></script>
 
-        
         <script type="text/javascript">
-            $( '#map' ).mapLite({
-                config: 'demo.json'
+            $.getJSON( 'demo.json' ).done( function( config ) {
+                $( '#map' ).mapLite({
+                    config: config
+                });
             });
         </script>
     </body>

@@ -30,38 +30,39 @@
  * 
  */
 
-var MARKER_COLORS = {
-    RED: {hex: '#fb6254'},
-    GREEN: {hex: '#00e03c'},
-    BLUE: {hex: '#4462c8'},
-    CYAN: {hex: '#54d6d6'},
-    PURPLE: {hex: '#7d54fb'},
-    YELLOW: {hex: '#fcf357'}
-};
-
-function MapliteDataSource( url, name, id, color, projection, styleMap, filter ) {
-    this.url = url;
-    this.name = name;
-    this.id = id;
-    this.color = color;
-    this.projection = projection;
-    this.styleMap = styleMap;
-    if ( typeof filter !== 'undefined' && filter !== null ) {
-        this.filter = filter;
-    } else {
-        this.filter = function( zoom, layer ) {
-            return layer;
-        };
-    }
-}
-
 (function($, document){
+    
     // private constants
     var ICON_PATH = 'markers/24/';
     var ICON_EXTENSION = '.png';
     var UNITS = 'm';
     var PROJECTION = 'EPSG:900913';
     var SELECTED_LAYER_NAME = 'lyr_selected';
+    
+    var MARKER_COLORS = {
+        RED: {hex: '#fb6254'},
+        GREEN: {hex: '#00e03c'},
+        BLUE: {hex: '#4462c8'},
+        CYAN: {hex: '#54d6d6'},
+        PURPLE: {hex: '#7d54fb'},
+        YELLOW: {hex: '#fcf357'}
+    };
+    
+    function MapliteDataSource( url, name, id, color, projection, styleMap, filter ) {
+        this.url = url;
+        this.name = name;
+        this.id = id;
+        this.color = color;
+        this.projection = projection;
+        this.styleMap = styleMap;
+        if ( typeof filter !== 'undefined' && filter !== null ) {
+            this.filter = filter;
+        } else {
+            this.filter = function( zoom, layer ) {
+                return layer;
+            };
+        }
+    }
     
     $.widget( 'nemac.mapLite', {
         //----------------------------------------------------------------------
@@ -111,7 +112,7 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
         //----------------------------------------------------------------------
         _create: function() {
             // is external config file-driven?
-            if ( this.options.config !== null && typeof this.options.config === 'string' ) {
+            if ( this.options.config !== null && typeof this.options.config === 'object' ) {
                 var instance = this;
                 MapConfig( this.options.config ).done( function( options, mapOptions, layers ) {
                     $.extend( instance.options, options );
@@ -755,18 +756,8 @@ function MapliteDataSource( url, name, id, color, projection, styleMap, filter )
             this._addSelectLayer();
         }
     });
-})(jQuery, document);
-
-// test helpers
-function timeDiff() {
-    var start = new Date();
-    var tp = start.getTime();
     
-    return function( message ) {
-        var d = new Date();
-        var tc = d.getTime();
-        var pr = tc - tp;
-        console.log( message + ' in ' + pr  + ' ms' );
-        tp = tc;
-    };
-}
+    $.nemac.MARKER_COLORS = MARKER_COLORS;
+    $.nemac.MapliteDataSource = MapliteDataSource;
+    
+})(jQuery, document);
