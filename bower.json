@@ -1,6 +1,6 @@
 {
   "name": "maplite",
-  "version": "1.0.38",
+  "version": "1.0.39",
   "homepage": "https://github.com/cmy2k/maplite",
   "main": "maplite.js",
   "ignore": [

@@ -813,7 +813,14 @@
         
         if ( rawJson.hasOwnProperty( 'overlays' ) ) {
             $.each( rawJson.overlays, function(){
-                config.layers.overlays[this.id] = translateWms( this );
+                
+                if ( !this.hasOwnProperty( 'type' ) || this.type === 'WMS' ) {
+                    config.layers.overlays[this.id] = translateWms( this );
+                } else if ( this.type === 'REST' ) {
+                    config.layers.overlays[this.id] = translateRest( this );
+                }
+                
+                
             });
         }
         
@@ -871,16 +878,38 @@
             transparent: true
         };
         
-        var layer = new OpenLayers.Layer.WMS(
-                wms.name,
-        wms.url,
-        wmsProps);
+        var layer = new OpenLayers.Layer.WMS( wms.name, wms.url, wmsProps);
         
         if ( wms.hasOwnProperty('projection')) {
             layer.projection = wms.projection;
         };
         
         layer.id = wms.id;
+        layer.isBaseLayer = false;
+        
+        return layer;
+    }
+    
+    function translateRest( rest ) {
+        var layers = 'show:';
+        if ( typeof rest.layers === 'string') {
+            layers += rest.layers;
+        } else if ( rest.layers instanceof Array ) {
+            layers += rest.layers.join( ',' );
+        }
+                
+        var restProps = {
+            layers: layers,
+            transparent: true
+        };
+        
+        var layer = new OpenLayers.Layer.ArcGIS93Rest( rest.name, rest.url, restProps);
+        
+        if ( rest.hasOwnProperty( 'projection' )) {
+            layer.projection = rest.projection;
+        }
+        
+        layer.id = rest.id;
         layer.isBaseLayer = false;
         
         return layer;

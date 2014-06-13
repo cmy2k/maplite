@@ -22,16 +22,32 @@
             "name": "Drought",
             "url": "http://torka.unl.edu:8080/cgi-bin/mapserv.exe?map=/ms4w/apps/dm/service/usdm_current_wms.map",
             "layers": "usdm_current"
+        }, {
+            "id": "aal",
+            "name": "Social Vulnerability Index",
+            "url": "http://www.csc.noaa.gov/ArcGISPUB/rest/services/dc_slr/SocioEconimc/MapServer/export",
+            "projection": "EPSG:3857",
+            "layers": "7",
+            "type": "REST"
+        }, {
+            "id": "aam",
+            "name": "Example REST",
+            "url": "http://sampleserver1.arcgisonline.com/ArcGIS/rest/services/Specialty/ESRI_StateCityHighway_USA/MapServer/export",
+            "projection": "EPSG:3857",
+            "layers": ["0", "2"],
+            "type": "REST"
         }
+        
+        
     ],
     "groups": [ {
         "id": "theme_a",
-        "name": "Sea Level Rise",
+        "name": "Theme 1",
         "isDefault": true,
-        "layers": [ "aab" ]
+        "layers": [ "aab", "aal", "aam" ]
     }, {
         "id": "theme_b",
-        "name": "Drought",
+        "name": "Theme 2",
         "layers": [ "aaa", "aab" ]
     } ]
 }
