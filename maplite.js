@@ -297,18 +297,26 @@
 
             $( '#mlGroupLayers' ).empty();
             
-            $.each( group.layers, function() {
-                instance._addOverlay( this );
-                var lyr = instance.layers.overlays[this];
-                var id = lyr.id;
-                var name = lyr.name;
-                $('#mlGroupLayers', '#mlLayerList').append( '<div class="mlLayerSelect"><input id="chk_' + id + '" type="checkbox"></input><label for=chk_' + id + '>' + name + '</label><img id="cfg_' + id + '" class="mlCfg" src="img/settings.png"></img></div>' );
-                instance.setLayerVisibility( this, false );
-            });
+            if ( group.hasOwnProperty( 'layers' ) ) {
+                $.each( group.layers, function() {
+                    instance._deployLayerSelect( $( '#mlGroupLayers', '#mlLayerList' ), instance.layers.overlays[this] );
+                });
+            }
+            
+            if ( group.hasOwnProperty( 'subGroups') ) {
+                $.each( group.subGroups, function() {
+                    $( '#mlGroupLayers', '#mlLayerList' ).append( '<span class="mlDataLbl">' + this.name + '</span>' );
+                    $.each( this.layers, function() {
+                        instance._deployLayerSelect( $( '#mlGroupLayers', '#mlLayerList' ), instance.layers.overlays[this] );
+                    });
+                });
+                            
+            };
             
             // bind click
             $( 'input', '#mlGroupLayers' ).click( function() {
                 var lyr = this.id.replace( 'chk_', '' );
+                instance._addOverlay( lyr );
                 instance.setLayerVisibility( lyr, this.checked );
                 
                 if (instance.options.layerToggleCallback !== null && typeof instance.options.layerToggleCallback === 'function' ) {
@@ -353,6 +361,13 @@
                 
                 $( '#transparencyLevel' ).text( opacity + "%" );
             });
+        },
+        
+        _deployLayerSelect: function( $ref, layer ) {
+            var id = layer.id;
+            var name = layer.name;
+            $( $ref ).append( '<div class="mlLayerSelect"><input id="chk_' + id + '" type="checkbox"></input><label for=chk_' + id + '>' + name + '</label><img id="cfg_' + id + '" class="mlCfg" src="img/settings.png"></img></div>' );
+            this.setLayerVisibility( id, false );
         },
                 
         // map creation helpers
