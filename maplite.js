@@ -715,6 +715,9 @@
          * $(...).mapLite('setLayerVisibility', 'layerId', false);
          */
         setLayerVisibility: function( layerId, visible ) {
+            if (visible) {
+                this._addOverlay( layerId );
+            }
             var layer = this.map.getLayer( layerId );
             if (!layer || layer === null) { return null; }
             
