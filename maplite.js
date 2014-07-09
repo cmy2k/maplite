@@ -63,6 +63,65 @@
             };
         }
     }
+
+/*
+ * The following is a fix for some odd behavior when a WMS layer is configred as 4326.
+ * Some background on the behavior:
+ * 1) If a WMS overlay in the config doesn't have a projection specified, it 
+ *    uses the map default (currently 900913). One can see that the request goes
+ *    through to the service with 900913, and everything is good.
+ * 2) If a WMS overlay has another SRS defined like EPSG:3857, the layer is 
+ *    configured using that code as expected. One can see that the request goes
+ *    through to the serivce with 3857, and everything is good.
+ * 3) If a WMS overlay uses 4326, the layer is configured using that code as 
+ *    expected. HOWEVER, when the WMS request is made, one can see from the traffic
+ *    that the request uses the EPSG code of 102100... Where does this come from?
+ *    Presumably the base layer that uses 102100. Why is this behavior inconsistent
+ *    given items 1 and 2 above? I have no idea. But, in come cases, the WMS is
+ *    configured to allow reuqests for 4326 and for 102100 (which is why this was
+ *    not previously noticed). Recently, I encountered a service howerver that
+ *    exposed 4326 but NOT 102100. OL helpfully continued requesting 102100 and
+ *    the service rejected the request.
+ * 
+ * What follows is forcing OL to request 4326 when it thinks 102100 is what we want.
+ * 
+ */
+    OpenLayers.Layer.WMS.prototype.getFullRequestString = function( newParams, altUrl ) {
+        var baseProj = this.map.baseLayer.projection.toString();
+        var thisProj = this.projection.toString();
+        
+        if ( baseProj === 'EPSG:102100' && thisProj === 'EPSG:4326' ) {
+            this.params.SRS = thisProj;
+            var request = OpenLayers.Layer.Grid.prototype.getFullRequestString.apply( this, arguments );
+            var bbox = request.match(/BBOX=([^&]+)/)[1].split( ',' );
+            var bounds = new OpenLayers.Bounds( bbox );
+            bounds = bounds.transform( new OpenLayers.Projection( baseProj ), new OpenLayers.Projection( thisProj ) );
+            request = request.replace( bbox, bounds.toString() );
+            return request;
+        } else {
+            // !!!!!!!!!!!!!!!!!!!!!!!!!!!
+            // THIS IS THE DEFAULT BEHAVIOR AS TAKEN DIRECTLY FROM THE SOURCE
+            // !!!!!!!!!!!!!!!!!!!!!!!!!!!
+            var mapProjection = this.map.getProjectionObject();
+            var projectionCode = this.projection && this.projection.equals(mapProjection) ? this.projection.getCode() : mapProjection.getCode();
+            var value = (projectionCode === "none") ? null : projectionCode;
+            if (parseFloat(this.params.VERSION) >= 1.3) {
+                this.params.CRS = value;
+            } else {
+                this.params.SRS = value;
+            }
+            
+            if (typeof this.params.TRANSPARENT === "boolean") {
+                newParams.TRANSPARENT = this.params.TRANSPARENT ? "TRUE" : "FALSE";
+            }
+            
+            return OpenLayers.Layer.Grid.prototype.getFullRequestString.apply(this, arguments);
+        }  
+    };
+    
+/*
+ * End kluge
+ */
     
     $.widget( 'nemac.mapLite', {
         //----------------------------------------------------------------------
@@ -904,7 +963,7 @@
         
         layer.id = wms.id;
         layer.isBaseLayer = false;
-        
+
         return layer;
     }
     
