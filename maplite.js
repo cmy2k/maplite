@@ -87,10 +87,10 @@
  * 
  */
     OpenLayers.Layer.WMS.prototype.getFullRequestString = function( newParams, altUrl ) {
-        var baseProj = this.map.baseLayer.projection.toString();
         var thisProj = this.projection.toString();
         
-        if ( baseProj === 'EPSG:102100' && thisProj === 'EPSG:4326' ) {
+        if ( thisProj === 'EPSG:4326' ) {
+            var baseProj = this.map.baseLayer.projection.toString();
             this.params.SRS = thisProj;
             var request = OpenLayers.Layer.Grid.prototype.getFullRequestString.apply( this, arguments );
             var bbox = request.match(/BBOX=([^&]+)/)[1].split( ',' );
