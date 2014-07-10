@@ -606,15 +606,20 @@
             var instance = this;
 
             $.each( this.layers.maplite, function() {
-                selectFeatures.push( instance._getCacheLayer( this, zoom ) );
+                var cacheLayer = instance._getCacheLayer( this, zoom );
+                var isVisible = true;
                 
                 // remove corresponding layer if exists
                 var getLayer = instance.map.getLayer( this.id );
                 if ( getLayer ) {
+                    isVisible = getLayer.visibility;
                     instance.map.removeLayer( getLayer );
                 }
+                
+                cacheLayer.visibility = isVisible;
+                selectFeatures.push( cacheLayer );
             });
-                        
+            //debugger;
             this.map.addLayers( selectFeatures );
             
             if ( this.selectLayer ) {
