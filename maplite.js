@@ -606,18 +606,23 @@
             var instance = this;
 
             $.each( this.layers.maplite, function() {
-                var cacheLayer = instance._getCacheLayer( this, zoom );
-                var isVisible = true;
+                var toAdd = false;
                 
                 // remove corresponding layer if exists
                 var getLayer = instance.map.getLayer( this.id );
-                if ( getLayer ) {
-                    isVisible = getLayer.visibility;
-                    instance.map.removeLayer( getLayer );
+                if ( getLayer ) { // exists and is visible
+                    if ( getLayer.visibility ) {
+                        instance.map.removeLayer( getLayer );
+                        toAdd = true;
+                    }
+                } else {
+                    toAdd = true;
                 }
                 
-                cacheLayer.visibility = isVisible;
-                selectFeatures.push( cacheLayer );
+                if ( toAdd ) {
+                    var cacheLayer = instance._getCacheLayer( this, zoom );
+                    selectFeatures.push( cacheLayer );
+                }
             });
             //debugger;
             this.map.addLayers( selectFeatures );
