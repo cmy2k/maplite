@@ -784,13 +784,25 @@
          * $(...).mapLite('setLayerVisibility', 'layerId', false);
          */
         setLayerVisibility: function( layerId, visible ) {
+            var toScale = false;
+            
             if (visible) {
                 this._addOverlay( layerId );
+                
+                // check if makers toggled to visible, the markers aren't being scaled when invisible
+                // so scale if they go from invisible to visible
+                toScale = this.layers.maplite.some( function( lyr ) {
+                    return lyr.id === layerId;
+                });
             }
             var layer = this.map.getLayer( layerId );
             if (!layer || layer === null) { return null; }
             
             layer.setVisibility( visible );
+            
+            if ( toScale ) {
+                this._scaleMapliteMarkers();
+            }
             
             $( '#chk_' + layerId ).prop( 'checked', visible);
         },
