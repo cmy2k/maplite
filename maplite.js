@@ -432,19 +432,12 @@
         // map creation helpers
         
         _deployMap: function( initialLayers ) {
-            var tileManager = new OpenLayers.TileManager({
-                cacheSize: 12,
-                moveDelay: 1000,
-                zoomDelay: 1000
-            });
-            
             var mapBaseOptions = {
                 div: this.element[0],
                 units: UNITS,
                 layers: initialLayers,
                 zoom: 4,
                 center: [-10500000, 4500000],
-                tileManager: tileManager,
                 controls: [
                     new OpenLayers.Control.Navigation({
                         dragPanOptions: {
