@@ -933,9 +933,16 @@
     function translateBaseLayer( base, config ) {
         switch( base.type ) {
             case 'arcgis':
+                var infoUrl;
+                
+                if ( base.hasOwnProperty( 'infoCache' ) ) {
+                    infoUrl = base.infoCache;
+                } else {
+                    infoUrl = base.url + '?f=json&pretty=true';
+                }
                 config.async.requests.push($.ajax({
-                    url: base.url + '?f=json&pretty=true',
-                    dataType: "jsonp",
+                    url: infoUrl,
+                    dataType: "json",
                     success: function ( info ) {
                         var bLyr = new OpenLayers.Layer.ArcGISCache( base.name, base.url, {
                             layerInfo: info
@@ -945,7 +952,6 @@
                         bLyr.isDefault = base.isDefault;
                         
                         config.async.layers.bases.push( bLyr );
-                        
                         config.async.mapOptions.resolutions = bLyr.resolutions;
                     }
                 }));
