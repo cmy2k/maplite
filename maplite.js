@@ -985,9 +985,13 @@
         
         var layer = new OpenLayers.Layer.WMS( wms.name, wms.url, wmsProps);
         
-        if ( wms.hasOwnProperty('projection')) {
+        if ( wms.hasOwnProperty( 'projection' )) {
             layer.projection = wms.projection;
         };
+        
+        if ( wms.hasOwnProperty( 'sld' )) {
+            layer.mergeNewParams( {SLD: wms.sld } );
+        }
         
         layer.id = wms.id;
         layer.isBaseLayer = false;
