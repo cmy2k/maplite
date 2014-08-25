@@ -992,6 +992,10 @@
         if ( wms.hasOwnProperty( 'sld' )) {
             layer.mergeNewParams( {SLD: wms.sld } );
         }
+
+        if ( wms.hasOwnProperty( 'map' )) {
+            layer.mergeNewParams( {MAP: wms.map } );
+        }
         
         layer.id = wms.id;
         layer.isBaseLayer = false;
