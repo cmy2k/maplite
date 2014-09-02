@@ -446,7 +446,8 @@
                     }),
                     new OpenLayers.Control.Zoom()
                 ],
-                projection: new OpenLayers.Projection( PROJECTION )
+                projection: new OpenLayers.Projection( PROJECTION ),
+	        theme: null
             };
 
             var olMap = new OpenLayers.Map($.extend( {}, mapBaseOptions, this.options.mapOptions));
