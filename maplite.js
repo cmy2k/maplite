@@ -726,7 +726,7 @@
             
             $('<div/>', {
                 id: baseId + '',
-                class: 'selectPane'
+                'class': 'selectPane'
             }).appendTo('#' + baseId);
         },
         
