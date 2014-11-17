@@ -918,6 +918,8 @@
                     config.layers.overlays[this.id] = translateWms( this );
                 } else if ( this.type === 'REST' ) {
                     config.layers.overlays[this.id] = translateRest( this );
+                } else if ( this.type === 'TILE' ) {
+                    config.layers.overlays[this.id] = translateTile( this );
                 }
                 
                 
@@ -1026,6 +1028,52 @@
         layer.id = rest.id;
         layer.isBaseLayer = false;
         
+        return layer;
+    }
+
+    // It is absolutely ridiculous that we have to hardcode the following array,
+    // but this seems to be what's necessary in order to specify a limited set
+    // of server resolutions for a tile service.
+    serverResolutions = [
+        // resolution           // zoom level
+        156543.03390625,        // 0
+        78271.516953125,        // 1
+        39135.7584765625,       // 2
+        19567.87923828125,      // 3
+        9783.939619140625,      // 4
+        4891.9698095703125,     // 5
+        2445.9849047851562,     // 6
+        1222.9924523925781,     // 7
+        611.4962261962891,      // 8
+        305.74811309814453,     // 9
+        152.87405654907226,     // 10
+        76.43702827453613,      // 11
+        38.218514137268066,     // 12
+        19.109257068634033,     // 13
+        9.554628534317017,      // 14
+        4.777314267158508,      // 15
+        2.388657133579254,      // 16
+        1.194328566789627,      // 17
+        0.5971642833948135,     // 18
+        0.29858214169740677,    // 19
+        0.14929107084870338,    // 20
+        0.07464553542435169     // 21
+    ];
+    
+    function translateTile( tile ) {
+        var tileProps = { 
+            sphericalMercator: true
+        };
+        if (tile.hasOwnProperty("maxZoom")) {
+            var maxZoom = tile["maxZoom"];
+            tileProps.serverResolutions = serverResolutions.slice(0,maxZoom+1);
+        }
+        
+        var layer = new OpenLayers.Layer.XYZ( tile.name, tile.url, tileProps);
+        
+        layer.id = tile.id;
+        layer.isBaseLayer = false;
+
         return layer;
     }
     
