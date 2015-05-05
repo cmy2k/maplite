@@ -15,7 +15,7 @@
  *   baseLayer: OpenLayers.Layer       A single base layer for the map
  *   layers: [OpenLayers.Layer, ...]   An array of data layers to overlay on the map
  *   extent: OpenLayers.Bounds         Initial extent of map
- * 
+ *
  * Returns
  *   this
  *
@@ -872,6 +872,7 @@
             $.when.apply( $, translatedConfig.async.requests ).then( function() {
                 // merge the async responses
                 $.extend( translatedConfig.layers.bases, translatedConfig.async.layers.bases );
+                $.extend( translatedConfig.layers.overlays, translatedConfig.async.layers.overlays );
                 $.extend( translatedConfig.mapOptions, translatedConfig.async.mapOptions );
                 deferred.resolve( translatedConfig.options, translatedConfig.mapOptions, translatedConfig.layers );
             }, function() {
@@ -899,7 +900,8 @@
                 options: {},
                 mapOptions: {},
                 layers: {
-                    bases: []
+                    bases: [],
+                    overlays: {}
                 }
             }
         };
@@ -920,8 +922,9 @@
                     config.layers.overlays[this.id] = translateRest( this );
                 } else if ( this.type === 'TILE' ) {
                     config.layers.overlays[this.id] = translateTile( this );
+                } else if ( this.type === 'ARCTILECACHE') {
+                  config.layers.overlays[this.id] = translateArcGisTileCache( this, config );
                 }
-
 
             });
         }
@@ -1075,6 +1078,25 @@
         layer.isBaseLayer = false;
 
         return layer;
+    }
+
+    function translateArcGisTileCache( tile, config ) {
+      var infoUrl = tile.url + '?f=json&pretty=true';
+
+      config.async.requests.push($.ajax({
+        url: infoUrl,
+        dataType: "json",
+        success: function ( info ) {
+          var layer = new OpenLayers.Layer.ArcGISCache( tile.name, tile.url, {
+            layerInfo: info
+          });
+
+          layer.id = tile.id;
+          layer.isBaseLayer = false;
+
+          config.async.layers.overlays[layer.id] = layer;
+        }
+      }));
     }
 
     // global namespace exports
