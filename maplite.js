@@ -48,6 +48,11 @@
         YELLOW: {hex: '#fcf357'}
     };
 
+    function randarg() {
+        var rand = String((new Date()).getTime());
+        return "rand=" + rand;
+    }
+
     function MapliteDataSource( url, name, id, color, projection, styleMap, filter ) {
         this.url = url;
         this.name = name;
@@ -944,7 +949,7 @@
                 if ( base.hasOwnProperty( 'infoCache' ) ) {
                     infoUrl = base.infoCache;
                 } else {
-                    infoUrl = base.url + '?f=json&pretty=true';
+                    infoUrl = base.url + '?f=json&pretty=true&' + randarg();
                 }
                 config.async.requests.push($.ajax({
                     url: infoUrl,
@@ -1081,7 +1086,7 @@
     }
 
     function translateArcGisTileCache( tile, config ) {
-      var infoUrl = tile.url + '?f=json&pretty=true';
+      var infoUrl = tile.url + '?f=json&pretty=true&'+randarg();
 
       config.async.requests.push($.ajax({
         url: infoUrl,
